@@ -6,6 +6,7 @@
  * Sorted alphabetically.
  */
 
+#include <linux/device.h>
 #include <linux/errname.h>
 #include <linux/slab.h>
 #include <linux/ktime.h>
