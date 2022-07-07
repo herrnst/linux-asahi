@@ -10,3 +10,6 @@ apple-rtkit-y = rtkit.o rtkit-crashlog.o
 
 obj-$(CONFIG_APPLE_SART) += apple-sart.o
 apple-sart-y = sart.o
+
+obj-$(CONFIG_APPLE_DOCKCHANNEL) += apple-dockchannel.o
+apple-dockchannel-y = dockchannel.o
