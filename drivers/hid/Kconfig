@@ -1475,4 +1475,6 @@ source "drivers/hid/usbhid/Kconfig"
 
 source "drivers/hid/spi-hid/Kconfig"
 
+source "drivers/hid/dockchannel-hid/Kconfig"
+
 endif # HID_SUPPORT
