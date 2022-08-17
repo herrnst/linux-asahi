@@ -161,7 +161,6 @@ pub mod security;
 pub mod seq_file;
 pub mod sizes;
 pub mod slice;
-#[cfg(CONFIG_SOC_BUS)]
 pub mod soc;
 mod static_assert;
 #[doc(hidden)]
