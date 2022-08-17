@@ -133,7 +133,6 @@ pub mod scatterlist;
 pub mod security;
 pub mod seq_file;
 pub mod sizes;
-#[cfg(CONFIG_SOC_BUS)]
 pub mod soc;
 #[doc(hidden)]
 pub mod std_vendor;
