@@ -8,6 +8,7 @@
 
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/dma-mapping.h>
 #include <linux/errname.h>
 #include <linux/slab.h>
 #include <linux/io-pgtable.h>
