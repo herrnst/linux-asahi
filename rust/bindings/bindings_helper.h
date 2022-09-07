@@ -17,6 +17,7 @@
 #include <linux/blkdev.h>
 #include <linux/cred.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/errname.h>
 #include <linux/ethtool.h>
 #include <linux/file.h>
