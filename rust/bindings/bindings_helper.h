@@ -21,6 +21,7 @@
 #include <linux/file.h>
 #include <linux/firmware.h>
 #include <linux/fs.h>
+#include <linux/io-pgtable.h>
 #include <linux/jiffies.h>
 #include <linux/jump_label.h>
 #include <linux/ktime.h>
