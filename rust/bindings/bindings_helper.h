@@ -9,11 +9,13 @@
 #include <kunit/test.h>
 #include <linux/errname.h>
 #include <linux/slab.h>
+#include <linux/ktime.h>
 #include <linux/lockdep.h>
 #include <linux/refcount.h>
 #include <linux/wait.h>
 #include <linux/siphash.h>
 #include <linux/sched.h>
+#include <linux/timekeeping.h>
 
 /* `bindgen` gets confused at certain things. */
 const size_t BINDINGS_ARCH_SLAB_MINALIGN = ARCH_SLAB_MINALIGN;
