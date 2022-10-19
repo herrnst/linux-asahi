@@ -44,6 +44,7 @@ pub mod std_vendor;
 pub mod str;
 pub mod sync;
 pub mod task;
+pub mod time;
 pub mod types;
 
 #[doc(hidden)]
