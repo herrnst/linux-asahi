@@ -160,8 +160,15 @@ static int tps6598x_displayport_vdm(struct typec_altmode *alt, u32 header,
 		dev_warn(
 			&partner->dev,
 			"Firmware doesn't support alternate mode overriding\n");
-		ret = -EOPNOTSUPP;
-		goto out_unlock;
+		/*
+		* Under some conditions VMD's after DP_CMD_CONFIGURE where
+		* observed. It is unclear if those came from the DFP device to
+		* re-configure are caused by timeouts or something else.
+		*/
+		if (false) {
+			ret = -EOPNOTSUPP;
+			goto out_unlock;
+		}
 	}
 
 	svdm_version = typec_altmode_get_svdm_version(alt);
