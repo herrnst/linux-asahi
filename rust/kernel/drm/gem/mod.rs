@@ -4,6 +4,9 @@
 //!
 //! C header: [`include/linux/drm/drm_gem.h`](../../../../include/linux/drm/drm_gem.h)
 
+#[cfg(CONFIG_DRM_GEM_SHMEM_HELPER = "y")]
+pub mod shmem;
+
 use alloc::boxed::Box;
 
 use crate::{
@@ -206,8 +209,6 @@ impl<T: IntoGEMObject> BaseObject for T {}
 #[pin_data]
 pub struct Object<T: DriverObject> {
     obj: bindings::drm_gem_object,
-    // The DRM core ensures the Device exists as long as its objects exist, so we don't need to
-    // manage the reference count here.
     dev: *const bindings::drm_device,
     #[pin]
     inner: T,
@@ -250,8 +251,6 @@ impl<T: DriverObject> Object<T> {
                     ..Default::default()
                 },
                 inner <- T::new(dev, size),
-            // SAFETY: The drm subsystem guarantees that the drm_device will live as long as
-            // the GEM object lives, so we can conjure a reference out of thin air.
                 dev: dev.drm.get(),
                 _p: PhantomPinned
             }),
@@ -260,7 +259,7 @@ impl<T: DriverObject> Object<T> {
 
         // SAFETY: Safe to call as long as the pointer is a properly allocated GEM object
         to_result(unsafe {
-            bindings::drm_gem_object_init(dev.raw() as *mut _, &obj.obj as *const _ as *mut _, size)
+            bindings::drm_gem_object_init(dev.raw_mut(), &obj.obj as *const _ as *mut _, size)
         })?;
 
         // SAFETY: We never move out of self
