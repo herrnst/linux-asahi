@@ -13,6 +13,7 @@
 #include "build_bug.c"
 #include "cred.c"
 #include "device.c"
+#include "drm.c"
 #include "err.c"
 #include "io.c"
 #include "fs.c"
