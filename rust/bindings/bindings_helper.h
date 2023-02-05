@@ -6,12 +6,15 @@
  * Sorted alphabetically.
  */
 
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_ioctl.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/errname.h>
 #include <linux/slab.h>
+#include <linux/fs.h>
 #include <linux/io-pgtable.h>
 #include <linux/ktime.h>
 #include <linux/lockdep.h>
