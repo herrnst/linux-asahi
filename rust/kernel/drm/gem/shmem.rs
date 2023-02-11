@@ -256,6 +256,10 @@ impl<T: DriverObject> gem::IntoGEMObject for Object<T> {
         &self.obj.base
     }
 
+    fn mut_gem_obj(&mut self) -> &mut bindings::drm_gem_object {
+        &mut self.obj.base
+    }
+
     // Safety: the passed GEM object must be owned by this driver (and be a shmem object).
     unsafe fn from_gem_obj(obj: *mut bindings::drm_gem_object) -> *mut Object<T> {
         // SAFETY: The invariant guarantees this is correct.
