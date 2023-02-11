@@ -17,6 +17,7 @@
 #include "dma-mapping.c"
 #include "dma-resv.c"
 #include "drm.c"
+#include "drm_syncobj.c"
 #include "err.c"
 #include "io.c"
 #include "iomem.c"
