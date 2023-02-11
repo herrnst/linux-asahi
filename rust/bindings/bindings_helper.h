@@ -17,6 +17,8 @@
 #include <linux/blkdev.h>
 #include <linux/cred.h>
 #include <linux/delay.h>
+#include <linux/dma-fence.h>
+#include <linux/dma-fence-chain.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
 #include <linux/errname.h>
