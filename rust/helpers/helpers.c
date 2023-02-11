@@ -23,6 +23,7 @@
 #include "iomem.c"
 #include "ioport.c"
 #include "fs.c"
+#include "jiffies.c"
 #include "jump_label.c"
 #include "kunit.c"
 #include "lockdep.c"
