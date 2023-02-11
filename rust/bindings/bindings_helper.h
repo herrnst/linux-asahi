@@ -15,12 +15,14 @@
 #include <kunit/test.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/dma-fence.h>
+#include <linux/dma-fence-chain.h>
 #include <linux/dma-mapping.h>
 #include <linux/errname.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
-#include <linux/io-pgtable.h>
 #include <linux/iosys-map.h>
+#include <linux/io-pgtable.h>
 #include <linux/ktime.h>
 #include <linux/lockdep.h>
 #include <linux/of.h>
