@@ -16,6 +16,7 @@
 #![feature(coerce_unsized)]
 #![feature(const_refs_to_cell)]
 #![feature(dispatch_from_dyn)]
+#![feature(duration_constants)]
 #![feature(inline_const)]
 #![feature(lint_reasons)]
 #![feature(ptr_sub_ptr)]
@@ -41,6 +42,7 @@ pub mod alloc;
 #[cfg(CONFIG_BLOCK)]
 pub mod block;
 mod build_assert;
+pub mod delay;
 pub mod device;
 pub mod device_id;
 pub mod devres;
