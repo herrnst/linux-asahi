@@ -54,6 +54,7 @@ pub mod task;
 pub mod time;
 pub mod types;
 pub mod uaccess;
+pub mod user_ptr;
 pub mod workqueue;
 pub mod xarray;
 
