@@ -61,6 +61,12 @@ unsigned long rust_helper_copy_to_user(void __user *to, const void *from,
 }
 EXPORT_SYMBOL_GPL(rust_helper_copy_to_user);
 
+unsigned long rust_helper_clear_user(void __user *to, unsigned long n)
+{
+	return clear_user(to, n);
+}
+EXPORT_SYMBOL_GPL(rust_helper_clear_user);
+
 void rust_helper_mutex_lock(struct mutex *lock)
 {
 	mutex_lock(lock);
