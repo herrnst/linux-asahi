@@ -47,6 +47,7 @@ pub mod ioctl;
 #[cfg(CONFIG_KUNIT)]
 pub mod kunit;
 pub mod module_param;
+pub mod of;
 pub mod prelude;
 pub mod print;
 pub mod siphash;
