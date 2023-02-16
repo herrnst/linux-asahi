@@ -42,6 +42,7 @@ pub mod io_pgtable;
 pub mod ioctl;
 #[cfg(CONFIG_KUNIT)]
 pub mod kunit;
+pub mod module_param;
 pub mod prelude;
 pub mod print;
 pub mod siphash;
