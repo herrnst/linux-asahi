@@ -16,6 +16,7 @@
 #include "drm.c"
 #include "err.c"
 #include "io.c"
+#include "iomem.c"
 #include "fs.c"
 #include "jump_label.c"
 #include "kunit.c"

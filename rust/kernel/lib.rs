@@ -59,6 +59,7 @@ pub mod firmware;
 pub mod fs;
 pub mod init;
 pub mod io_buffer;
+pub mod io_mem;
 pub mod io_pgtable;
 pub mod ioctl;
 pub mod jump_label;
