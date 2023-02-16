@@ -13,6 +13,7 @@
 
 #![no_std]
 #![feature(allocator_api)]
+#![feature(associated_type_defaults)]
 #![feature(coerce_unsized)]
 #![feature(const_mut_refs)]
 #![feature(const_refs_to_cell)]
@@ -48,6 +49,7 @@ pub mod ioctl;
 pub mod kunit;
 pub mod module_param;
 pub mod of;
+pub mod platform;
 pub mod prelude;
 pub mod print;
 pub mod siphash;
