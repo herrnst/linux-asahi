@@ -54,6 +54,7 @@ pub mod error;
 pub mod firmware;
 pub mod init;
 pub mod io_buffer;
+pub mod io_mem;
 pub mod io_pgtable;
 pub mod ioctl;
 #[cfg(CONFIG_KUNIT)]
