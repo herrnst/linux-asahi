@@ -16,9 +16,14 @@
 #include <linux/interrupt.h>
 #include <linux/usb/typec.h>
 #include <linux/usb/typec_altmode.h>
+#include <linux/usb/typec_dp.h>
+#include <linux/usb/typec_mux.h>
+#include <linux/usb/typec_tbt.h>
 #include <linux/usb/role.h>
 #include <linux/workqueue.h>
 #include <linux/firmware.h>
+
+#include <drm/drm_connector.h>
 
 #include "tps6598x.h"
 #include "trace.h"
@@ -47,6 +52,9 @@
 #define TPS_TASK_TIMEOUT		1
 #define TPS_TASK_REJECTED		3
 
+/* Debounce delay for mode changes, in milliseconds */
+#define DEBOUNCE_DELAY 500
+
 enum {
 	TPS_MODE_APP,
 	TPS_MODE_BOOT,
@@ -67,7 +75,6 @@ static const char *const modes[] = {
 #define INVALID_CMD(_cmd_)		(_cmd_ == 0x444d4321)
 
 struct tps6598x;
-
 
 static enum power_supply_property tps6598x_psy_props[] = {
 	POWER_SUPPLY_PROP_USB_TYPE,
@@ -194,6 +201,126 @@ static void tps6598x_set_data_role(struct tps6598x *tps,
 	typec_set_data_role(tps->port, role);
 }
 
+static void tps6598x_typec_update_mode(struct tps6598x *tps)
+{
+	if (tps->partner)
+		typec_set_mode(tps->port, TYPEC_STATE_USB);
+	else
+		typec_set_mode(tps->port, TYPEC_STATE_SAFE);
+}
+
+static void cd321x_typec_update_mode(struct tps6598x *tps, struct tps6598x_status *st)
+{
+	/*
+	 * Note that we skip all transitions through TYPEC_STATE_SAFE that would
+	 * be required by the spec here since we're only made aware of the mode
+	 * transitions long after they already happened and we're always coupled
+	 * with Apple's Type-C PHY which can transition between any states.
+	 */
+	tps->state.data_role = (st->data_status & TPS_DATA_STATUS_USB_DATA_ROLE) ? TYPEC_DEVICE : TYPEC_HOST;
+
+	if (!(st->data_status & TPS_DATA_STATUS_DATA_CONNECTION)) {
+		if (tps->state.mode == TYPEC_STATE_SAFE)
+			return;
+		tps->state.alt = NULL;
+		tps->state.mode = TYPEC_STATE_SAFE;
+		tps->state.data = NULL;
+		typec_mux_set(tps->mux, &tps->state);
+	} else if (st->data_status & TPS_DATA_STATUS_DP_CONNECTION) {
+		struct typec_displayport_data dp_data;
+		unsigned long mode;
+
+		switch(TPS_DATA_STATUS_DP_SPEC_PIN_ASSIGNMENT(st->data_status)) {
+		case TPS_DATA_STATUS_DP_SPEC_PIN_ASSIGNMENT_A:
+		    mode = TYPEC_DP_STATE_A;
+	            break;
+		case TPS_DATA_STATUS_DP_SPEC_PIN_ASSIGNMENT_B:
+		    mode = TYPEC_DP_STATE_B;
+	            break;
+		case TPS_DATA_STATUS_DP_SPEC_PIN_ASSIGNMENT_C:
+		    mode = TYPEC_DP_STATE_C;
+	            break;
+		case TPS_DATA_STATUS_DP_SPEC_PIN_ASSIGNMENT_D:
+		    mode = TYPEC_DP_STATE_D;
+	            break;
+		case TPS_DATA_STATUS_DP_SPEC_PIN_ASSIGNMENT_E:
+		    mode = TYPEC_DP_STATE_E;
+	            break;
+		case TPS_DATA_STATUS_DP_SPEC_PIN_ASSIGNMENT_F:
+		    mode = TYPEC_DP_STATE_F;
+	            break;
+		default:
+		    dev_err(tps->dev, "Invalid DP pin assignment\n");
+		    return;
+		}
+
+		if(tps->state.alt == tps->port_altmode_dp &&
+		   tps->state.mode == mode) {
+			return;
+		}
+
+		dp_data.status = le32_to_cpu(st->dp_sid_status.status_rx);
+		dp_data.conf = le32_to_cpu(st->dp_sid_status.configure);
+		tps->state.alt = tps->port_altmode_dp;
+		tps->state.data = &dp_data;
+		tps->state.mode = mode;
+		typec_mux_set(tps->mux, &tps->state);
+	} else if (st->data_status & TPS_DATA_STATUS_TBT_CONNECTION) {
+		struct typec_thunderbolt_data tbt_data;
+
+		if(tps->state.alt == tps->port_altmode_tbt &&
+		   tps->state.mode == TYPEC_TBT_MODE)
+			return;
+
+		tbt_data.cable_mode = le16_to_cpu(st->intel_vid_status.cable_mode);
+		tbt_data.device_mode = le16_to_cpu(st->intel_vid_status.device_mode);
+		tbt_data.enter_vdo = le16_to_cpu(st->intel_vid_status.enter_vdo);
+		tps->state.alt = tps->port_altmode_tbt;
+		tps->state.mode = TYPEC_TBT_MODE;
+		tps->state.data = &tbt_data;
+		typec_mux_set(tps->mux, &tps->state);
+	} else if (st->data_status & CD321X_DATA_STATUS_USB4_CONNECTION) {
+		struct enter_usb_data eusb_data;
+
+		if(tps->state.alt == NULL && tps->state.mode == TYPEC_MODE_USB4)
+			return;
+
+		eusb_data.eudo = le16_to_cpu(st->usb4_status.eudo);
+		eusb_data.active_link_training =
+			!!(st->data_status & TPS_DATA_STATUS_ACTIVE_LINK_TRAIN);
+
+		tps->state.alt = NULL;
+		tps->state.data = &eusb_data;
+		tps->state.mode = TYPEC_MODE_USB4;
+		typec_mux_set(tps->mux, &tps->state);
+	} else {
+		if (tps->state.alt == NULL && tps->state.mode == TYPEC_STATE_USB)
+			return;
+		tps->state.alt = NULL;
+		tps->state.mode = TYPEC_STATE_USB;
+		tps->state.data = NULL;
+		typec_mux_set(tps->mux, &tps->state);
+	}
+}
+
+static bool tps6598x_read_data_status(struct tps6598x *tps)
+{
+	u32 data_status;
+	int ret;
+
+	ret = tps6598x_read32(tps, TPS_REG_DATA_STATUS, &data_status);
+	if (ret < 0) {
+		dev_err(tps->dev, "failed to read data status: %d\n", ret);
+		return false;
+	}
+
+	if (tps->data->trace_data_status)
+		tps->data->trace_data_status(data_status);
+	tps->data_status = data_status;
+
+	return true;
+}
+
 static int tps6598x_connect(struct tps6598x *tps, u32 status)
 {
 	struct typec_partner_desc desc;
@@ -216,6 +343,9 @@ static int tps6598x_connect(struct tps6598x *tps, u32 status)
 		desc.identity = &tps->partner_identity;
 	}
 
+	if (tps->data->typec_update_mode)
+		tps->data->typec_update_mode(tps);
+
 	typec_set_pwr_opmode(tps->port, mode);
 	typec_set_pwr_role(tps->port, TPS_STATUS_TO_TYPEC_PORTROLE(status));
 	typec_set_vconn_role(tps->port, TPS_STATUS_TO_TYPEC_VCONN(status));
@@ -223,7 +353,6 @@ static int tps6598x_connect(struct tps6598x *tps, u32 status)
 		typec_set_orientation(tps->port, TYPEC_ORIENTATION_REVERSE);
 	else
 		typec_set_orientation(tps->port, TYPEC_ORIENTATION_NORMAL);
-	typec_set_mode(tps->port, TYPEC_STATE_USB);
 	tps6598x_set_data_role(tps, TPS_STATUS_TO_TYPEC_DATAROLE(status), true);
 
 	tps->partner = typec_register_partner(tps->port, &desc);
@@ -247,7 +376,8 @@ static void tps6598x_disconnect(struct tps6598x *tps, u32 status)
 	typec_set_pwr_role(tps->port, TPS_STATUS_TO_TYPEC_PORTROLE(status));
 	typec_set_vconn_role(tps->port, TPS_STATUS_TO_TYPEC_VCONN(status));
 	typec_set_orientation(tps->port, TYPEC_ORIENTATION_NONE);
-	typec_set_mode(tps->port, TYPEC_STATE_SAFE);
+	if (tps->data->typec_update_mode)
+		tps->data->typec_update_mode(tps);
 	tps6598x_set_data_role(tps, TPS_STATUS_TO_TYPEC_DATAROLE(status), false);
 
 	power_supply_changed(tps->psy);
@@ -408,21 +538,6 @@ static bool tps6598x_read_status(struct tps6598x *tps, u32 *status)
 	return true;
 }
 
-static bool tps6598x_read_data_status(struct tps6598x *tps)
-{
-	u32 data_status;
-	int ret;
-
-	ret = tps6598x_read32(tps, TPS_REG_DATA_STATUS, &data_status);
-	if (ret < 0) {
-		dev_err(tps->dev, "failed to read data status: %d\n", ret);
-		return false;
-	}
-	trace_tps6598x_data_status(data_status);
-
-	return true;
-}
-
 static bool tps6598x_read_power_status(struct tps6598x *tps)
 {
 	u16 pwr_status;
@@ -454,6 +569,169 @@ static void tps6598x_handle_plug_event(struct tps6598x *tps, u32 status)
 	}
 }
 
+static bool cd321x_read_data_status(struct tps6598x *tps)
+{
+	int ret;
+
+	ret = tps6598x_read_data_status(tps);
+	if (ret < 0)
+		return false;
+
+	if (tps->data_status & TPS_DATA_STATUS_DP_CONNECTION) {
+		ret = tps6598x_block_read(tps, TPS_REG_DP_SID_STATUS,
+				&tps->dp_sid_status, sizeof(tps->dp_sid_status));
+		if (ret)
+			dev_err(tps->dev, "Failed to read DP SID Status: %d\n",
+				ret);
+	}
+
+	if (tps->data_status & TPS_DATA_STATUS_TBT_CONNECTION) {
+		ret = tps6598x_block_read(tps, TPS_REG_INTEL_VID_STATUS,
+				&tps->intel_vid_status, sizeof(tps->intel_vid_status));
+		if (ret)
+			dev_err(tps->dev, "Failed to read Intel VID Status: %d\n", ret);
+	}
+
+	if (tps->data_status & CD321X_DATA_STATUS_USB4_CONNECTION) {
+		ret = tps6598x_block_read(tps, TPS_REG_USB4_STATUS,
+				&tps->usb4_status, sizeof(tps->usb4_status));
+		if (ret)
+			dev_err(tps->dev,
+				"Failed to read USB4 Status: %d\n", ret);
+	}
+
+	return true;
+}
+
+static void cd321x_update_work(struct work_struct *work)
+{
+	struct tps6598x *tps = container_of(to_delayed_work(work),
+					    struct tps6598x, update_work);
+
+	mutex_lock(&tps->update_lock);
+	struct tps6598x_status st = tps->update_status;
+	tps->update_status.status_changed = 0;
+	tps->update_status.pwr_status_changed = 0;
+	tps->update_status.data_status_changed = 0;
+	mutex_unlock(&tps->update_lock);
+
+
+	bool old_connected = !!tps->partner;
+	bool new_connected = st.status & TPS_STATUS_PLUG_PRESENT;
+	bool was_disconnected = st.status_changed & TPS_STATUS_PLUG_PRESENT;
+
+	bool usb_connection = st.data_status & (TPS_DATA_STATUS_USB2_CONNECTION | TPS_DATA_STATUS_USB3_CONNECTION);
+	bool dp_hpd = st.data_status & CD321X_DATA_STATUS_HPD_LEVEL;
+	bool dp_hpd_changed = st.data_status_changed & CD321X_DATA_STATUS_HPD_LEVEL;
+	enum usb_role old_role = usb_role_switch_get_role(tps->role_sw);
+	enum usb_role new_role = USB_ROLE_NONE;
+	enum typec_pwr_opmode pwr_opmode = TYPEC_PWR_MODE_USB;
+	enum typec_orientation orientation = TYPEC_ORIENTATION_NONE;
+
+	if (usb_connection)
+		new_role = (tps->data_status & TPS_DATA_STATUS_USB_DATA_ROLE) ? USB_ROLE_DEVICE : USB_ROLE_HOST;
+
+	if (new_connected) {
+		pwr_opmode = TPS_POWER_STATUS_PWROPMODE(st.pwr_status);
+		orientation = TPS_STATUS_TO_UPSIDE_DOWN(st.status) ?
+			TYPEC_ORIENTATION_REVERSE : TYPEC_ORIENTATION_NORMAL;
+	}
+
+	bool is_pd = pwr_opmode == TYPEC_PWR_MODE_PD;
+	bool partner_changed = old_connected && new_connected &&
+		(was_disconnected ||
+		 (is_pd != tps->cur_partner_pd) ||
+		 (is_pd && memcmp(&st.partner_identity,
+				  &tps->cur_partner_identity, sizeof(struct usb_pd_identity))));
+
+	/* If we are switching from an active role, transition to USB_ROLE_NONE first */
+	if (old_role != USB_ROLE_NONE && (new_role != old_role || was_disconnected)) {
+		usb_role_switch_set_role(tps->role_sw, USB_ROLE_NONE);
+	}
+
+	/* If HPD was removed, notify DRM (this is a no-op if already removed) */
+	if (tps->connector_fwnode && (!dp_hpd || dp_hpd_changed)) {
+		drm_connector_oob_hotplug_event(tps->connector_fwnode, connector_status_disconnected);
+	}
+
+	/* Process partner disconnection or change */
+	if (!new_connected || partner_changed) {
+		if (!IS_ERR(tps->partner))
+			typec_unregister_partner(tps->partner);
+		tps->partner = NULL;
+	}
+
+	/* If there was a disconnection, set PHY to off */
+	if (!new_connected || was_disconnected) {
+		tps->state.alt = NULL;
+		tps->state.mode = TYPEC_STATE_SAFE;
+		tps->state.data = NULL;
+		typec_set_mode(tps->port, TYPEC_STATE_SAFE);
+	}
+
+	/* Update Type-C properties */
+	typec_set_pwr_opmode(tps->port, pwr_opmode);
+	typec_set_pwr_role(tps->port, TPS_STATUS_TO_TYPEC_PORTROLE(st.status));
+	typec_set_vconn_role(tps->port, TPS_STATUS_TO_TYPEC_VCONN(st.status));
+	typec_set_orientation(tps->port, orientation);
+	typec_set_data_role(tps->port, TPS_STATUS_TO_TYPEC_DATAROLE(st.status));
+
+	/* If the plug is disconnected, we are done */
+	if (!new_connected)
+		return;
+
+	/* Set up partner if we were previously disconnected (or changed). */
+	if (!tps->partner) {
+		struct typec_partner_desc desc;
+		desc.usb_pd = is_pd;
+		desc.accessory = TYPEC_ACCESSORY_NONE; /* XXX: handle accessories */
+		desc.identity = NULL;
+
+		if (desc.usb_pd) {
+			desc.identity = &st.partner_identity;
+		}
+
+		tps->partner = typec_register_partner(tps->port, &desc);
+		if (IS_ERR(tps->partner)) {
+			dev_err(tps->dev, "%s: failed to register partnet\n", __func__);
+		}
+
+		if (desc.identity) {
+			typec_partner_set_identity(tps->partner);
+			tps->cur_partner_identity = st.partner_identity;
+		}
+	}
+
+	/* Update the TypeC MUX/PHY state */
+	cd321x_typec_update_mode(tps, &st);
+
+	/* Launch the USB role switch */
+	usb_role_switch_set_role(tps->role_sw, new_role);
+
+	/* If HPD was asserted, notify DRM (this is a no-op if already asserted) */
+	if (tps->connector_fwnode && dp_hpd) {
+		drm_connector_oob_hotplug_event(tps->connector_fwnode, connector_status_connected);
+	}
+}
+
+static void tps6598x_queue_status(struct tps6598x *tps)
+{
+	mutex_lock(&tps->update_lock);
+	tps->update_status.status_changed |= tps->update_status.status ^ tps->status;
+	tps->update_status.pwr_status_changed |= tps->update_status.pwr_status ^ tps->pwr_status;
+	tps->update_status.data_status_changed |= tps->update_status.data_status ^ tps->data_status;
+
+	tps->update_status.status = tps->status;
+	tps->update_status.pwr_status = tps->pwr_status;
+	tps->update_status.data_status = tps->data_status;
+
+	tps->update_status.partner_identity = tps->partner_identity;
+	tps->update_status.dp_sid_status = tps->dp_sid_status;
+	tps->update_status.intel_vid_status = tps->intel_vid_status;
+	tps->update_status.usb4_status = tps->usb4_status;
+	mutex_unlock(&tps->update_lock);
+}
+
 static irqreturn_t cd321x_interrupt(int irq, void *data)
 {
 	struct tps6598x *tps = data;
@@ -478,17 +756,38 @@ static irqreturn_t cd321x_interrupt(int irq, void *data)
 	if (!tps6598x_read_status(tps, &status))
 		goto err_unlock;
 
-	if (event & APPLE_CD_REG_INT_POWER_STATUS_UPDATE)
+	tps->status = status;
+
+	if (event & APPLE_CD_REG_INT_POWER_STATUS_UPDATE) {
 		if (!tps6598x_read_power_status(tps))
 			goto err_unlock;
+		if (TPS_POWER_STATUS_PWROPMODE(tps->pwr_status) == TYPEC_PWR_MODE_PD) {
+			if (tps6598x_read_partner_identity(tps)) {
+				dev_err(tps->dev, "%s: failed to partner identity\n", __func__);
+				tps->partner_identity = (struct usb_pd_identity) {0};
+			}
+		}
+	}
 
-	if (event & APPLE_CD_REG_INT_DATA_STATUS_UPDATE)
-		if (!tps6598x_read_data_status(tps))
+	if (event & APPLE_CD_REG_INT_DATA_STATUS_UPDATE) {
+		if (!cd321x_read_data_status(tps))
 			goto err_unlock;
+	}
 
-	/* Handle plug insert or removal */
-	if (event & APPLE_CD_REG_INT_PLUG_EVENT)
-		tps6598x_handle_plug_event(tps, status);
+	tps6598x_queue_status(tps);
+	power_supply_changed(tps->psy);
+
+	/*
+	 * Cancel pending work if not already running.
+	 * We will requeue the work after DEBOUNCE_DELAY regardless.
+	 */
+	cancel_delayed_work(&tps->update_work);
+	schedule_delayed_work(&tps->update_work, msecs_to_jiffies(DEBOUNCE_DELAY));
+
+	power_supply_changed(tps->psy);
+
+err_clear_ints:
+	tps6598x_write64(tps, TPS_REG_INT_CLEAR1, event);
 
 err_unlock:
 	mutex_unlock(&tps->lock);
@@ -732,6 +1031,35 @@ static int cd321x_switch_power_state(struct tps6598x *tps, u8 target_state)
 	return 0;
 }
 
+static int cd321x_register_port_altmodes(struct tps6598x *tps)
+{
+	struct typec_altmode_desc desc;
+	struct typec_altmode *amode;
+
+	memset(&desc, 0, sizeof(desc));
+	desc.svid = USB_TYPEC_DP_SID;
+	desc.mode = USB_TYPEC_DP_MODE;
+	desc.vdo = DP_CONF_SET_PIN_ASSIGN(BIT(DP_PIN_ASSIGN_C) | BIT(DP_PIN_ASSIGN_D));
+	desc.vdo |= DP_CAP_DFP_D;
+	amode = typec_port_register_altmode(tps->port, &desc);
+	if (IS_ERR(amode))
+		return PTR_ERR(amode);
+	tps->port_altmode_dp = amode;
+
+	memset(&desc, 0, sizeof(desc));
+	desc.svid = USB_TYPEC_TBT_SID;
+	desc.mode = TYPEC_ANY_MODE;
+	amode = typec_port_register_altmode(tps->port, &desc);
+	if (IS_ERR(amode)) {
+		typec_unregister_altmode(tps->port_altmode_dp);
+		tps->port_altmode_dp = NULL;
+		return PTR_ERR(amode);
+	}
+	tps->port_altmode_tbt = amode;
+
+	return 0;
+}
+
 static int devm_tps6598_psy_register(struct tps6598x *tps)
 {
 	struct power_supply_config psy_cfg = {};
@@ -835,6 +1163,71 @@ static int tps_request_firmware(struct tps6598x *tps, const struct firmware **fw
 	}
 
 	return ret;
+}
+
+static int
+cd321x_register_port(struct tps6598x *tps, struct fwnode_handle *fwnode)
+{
+	int ret;
+
+	ret = tps6598x_register_port(tps, fwnode);
+	if (ret)
+		return ret;
+
+	ret = cd321x_register_port_altmodes(tps);
+	if (ret)
+		goto err_unregister_port;
+
+	tps->mux = fwnode_typec_mux_get(fwnode);
+	if (IS_ERR(tps->mux)) {
+		ret = PTR_ERR(tps->mux);
+		goto err_unregister_altmodes;
+	}
+
+	if (fwnode_property_present(fwnode, "displayport"))
+		tps->connector_fwnode = fwnode_find_reference(fwnode, "displayport", 0);
+	else
+		tps->connector_fwnode = NULL;
+	if (IS_ERR(tps->connector_fwnode))
+		tps->connector_fwnode = NULL;
+
+	tps->state.alt = NULL;
+	tps->state.mode = TYPEC_STATE_SAFE;
+	tps->state.data = NULL;
+	typec_set_mode(tps->port, TYPEC_STATE_SAFE);
+
+	return 0;
+
+err_unregister_altmodes:
+	if (tps->port_altmode_dp)
+		typec_unregister_altmode(tps->port_altmode_dp);
+	if (tps->port_altmode_tbt)
+		typec_unregister_altmode(tps->port_altmode_tbt);
+	tps->port_altmode_dp = NULL;
+	tps->port_altmode_tbt = NULL;
+err_unregister_port:
+	typec_unregister_port(tps->port);
+	return ret;
+}
+
+static void
+tps6598x_unregister_port(struct tps6598x *tps)
+{
+	typec_unregister_port(tps->port);
+}
+
+static void
+cd321x_unregister_port(struct tps6598x *tps)
+{
+	if (tps->mux)
+		typec_mux_put(tps->mux);
+	if (tps->port_altmode_dp)
+		typec_unregister_altmode(tps->port_altmode_dp);
+	if (tps->port_altmode_tbt)
+		typec_unregister_altmode(tps->port_altmode_tbt);
+	tps->port_altmode_dp = NULL;
+	tps->port_altmode_tbt = NULL;
+	typec_unregister_port(tps->port);
 }
 
 static int
@@ -1300,6 +1693,7 @@ static int tps6598x_probe(struct i2c_client *client)
 		ret = -ENODEV;
 		goto err_clear_mask;
 	}
+	tps->status = status;
 
 	/*
 	 * This fwnode has a "compatible" property, but is never populated as a
@@ -1326,15 +1720,23 @@ static int tps6598x_probe(struct i2c_client *client)
 	if (ret)
 		goto err_role_put;
 
+	if (tps->data->update_work) {
+		INIT_DELAYED_WORK(&tps->update_work, tps->data->update_work);
+	}
+
 	if (status & TPS_STATUS_PLUG_PRESENT) {
-		ret = tps6598x_read16(tps, TPS_REG_POWER_STATUS, &tps->pwr_status);
-		if (ret < 0) {
-			dev_err(tps->dev, "failed to read power status: %d\n", ret);
+		if (!tps6598x_read_power_status(tps))
 			goto err_unregister_port;
+		if (!tps->data->read_data_status(tps))
+			goto err_unregister_port;
+		if (tps->data->update_work) {
+			tps6598x_queue_status(tps);
+			schedule_delayed_work(&tps->update_work, msecs_to_jiffies(DEBOUNCE_DELAY));
+		} else {
+			ret = tps6598x_connect(tps, status);
+			if (ret)
+				dev_err(&client->dev, "failed to register partner\n");
 		}
-		ret = tps6598x_connect(tps, status);
-		if (ret)
-			dev_err(&client->dev, "failed to register partner\n");
 	}
 
 	if (client->irq) {
@@ -1364,9 +1766,10 @@ static int tps6598x_probe(struct i2c_client *client)
 	return 0;
 
 err_disconnect:
+	typec_set_mode(tps->port, TYPEC_STATE_SAFE);
 	tps6598x_disconnect(tps, 0);
 err_unregister_port:
-	typec_unregister_port(tps->port);
+	tps->data->unregister_port(tps);
 err_role_put:
 	usb_role_switch_put(tps->role_sw);
 err_fwnode_put:
@@ -1389,8 +1792,12 @@ static void tps6598x_remove(struct i2c_client *client)
 	else
 		devm_free_irq(tps->dev, client->irq, tps);
 
+	if (tps->data->update_work) {
+		cancel_delayed_work_sync(&tps->update_work);
+	}
+
 	tps6598x_disconnect(tps, 0);
-	typec_unregister_port(tps->port);
+	tps->data->unregister_port(tps);
 	usb_role_switch_put(tps->role_sw);
 
 	/* Reset PD controller to remove any applied patch */
@@ -1455,31 +1862,43 @@ static const struct dev_pm_ops tps6598x_pm_ops = {
 
 static const struct tipd_data cd321x_data = {
 	.irq_handler = cd321x_interrupt,
-	.register_port = tps6598x_register_port,
+	.register_port = cd321x_register_port,
+	.unregister_port = cd321x_unregister_port,
+	.read_data_status = cd321x_read_data_status,
 	.trace_power_status = trace_tps6598x_power_status,
+	.trace_data_status = trace_cd321x_data_status,
 	.trace_status = trace_tps6598x_status,
 	.init = cd321x_init,
 	.reset = cd321x_reset,
+	.update_work = cd321x_update_work,
 };
 
 static const struct tipd_data tps6598x_data = {
 	.irq_handler = tps6598x_interrupt,
 	.register_port = tps6598x_register_port,
+	.unregister_port = tps6598x_unregister_port,
+	.read_data_status = tps6598x_read_data_status,
 	.trace_power_status = trace_tps6598x_power_status,
+	.trace_data_status = trace_tps6598x_data_status,
 	.trace_status = trace_tps6598x_status,
 	.apply_patch = tps6598x_apply_patch,
 	.init = tps6598x_init,
 	.reset = tps6598x_reset,
+	.typec_update_mode = tps6598x_typec_update_mode,
 };
 
 static const struct tipd_data tps25750_data = {
 	.irq_handler = tps25750_interrupt,
 	.register_port = tps25750_register_port,
+	.unregister_port = tps6598x_unregister_port,
+	.read_data_status = tps6598x_read_data_status,
 	.trace_power_status = trace_tps25750_power_status,
+	.trace_data_status = trace_tps6598x_data_status,
 	.trace_status = trace_tps25750_status,
 	.apply_patch = tps25750_apply_patch,
 	.init = tps25750_init,
 	.reset = tps25750_reset,
+	.typec_update_mode = tps6598x_typec_update_mode,
 };
 
 static const struct of_device_id tps6598x_of_match[] = {
