@@ -384,6 +384,10 @@
 	status = "disabled";
 };
 
+&ps_atc3_usb_aon {
+	/delete-property/ apple,always-on;
+};
+
 / {
 	sound: sound {
 		compatible = "apple,j314-macaudio", "apple,macaudio";
