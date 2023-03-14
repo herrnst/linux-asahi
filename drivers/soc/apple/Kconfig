@@ -21,7 +21,6 @@ config APPLE_MBOX
 	tristate "Apple SoC mailboxes"
 	depends on PM
 	depends on ARCH_APPLE || (64BIT && COMPILE_TEST)
-	depends on !APPLE_MAILBOX
 	default ARCH_APPLE
 	help
 	  Apple SoCs have various co-processors required for certain
