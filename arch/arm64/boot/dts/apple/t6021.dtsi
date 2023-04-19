@@ -19,6 +19,9 @@
 #ifndef GPU_REPEAT
 # define GPU_REPEAT(x) <x x x x>
 #endif
+#ifndef GPU_DIE_REPEAT
+# define GPU_DIE_REPEAT(x) <x>
+#endif
 
 #include "t602x-common.dtsi"
 
