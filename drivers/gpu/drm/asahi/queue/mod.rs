@@ -634,6 +634,7 @@ impl Queue for Queue::ver {
                                     stamp_self: queue_job.event_info().value.next(),
                                     uuid: 0xffffbbbb,
                                     barrier_type: 0,
+                                    padding: Default::default(),
                                 }
                             ))
                         },
