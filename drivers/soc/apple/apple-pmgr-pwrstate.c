@@ -268,7 +268,7 @@ static int apple_pmgr_ps_probe(struct platform_device *pdev)
 			active = apple_pmgr_ps_power_on(&ps->genpd) == 0;
 		}
 	} else if (active) {
-		ps->genpd.flags |= GENPD_FLAG_DEFER_OFF;
+		ps->genpd.flags |= GENPD_FLAG_DEFER_OFF | GENPD_FLAG_ACTIVE_WAKEUP;
 	}
 
 	if (of_property_read_bool(node, "apple,force-disable"))
