@@ -33,8 +33,12 @@ asm(
 		"orr x0, x0, #(3L << 24)\n"
 		"msr s3_5_c15_c5_0, x0\n"
 
+	"1:\n"
 		"dsb sy\n"
 		"wfi\n"
+
+		"mrs x0, ISR_EL1\n"
+		"cbz x0, 1b\n"
 
 		"mrs x0, s3_5_c15_c5_0\n"
 		"bic x0, x0, #(1L << 24)\n"
@@ -68,16 +72,7 @@ static __cpuidle int apple_enter_idle(struct cpuidle_device *dev, struct cpuidle
 		cpu_do_idle();
 		break;
 	case STATE_PWRDOWN:
-		/*
-		 * If we probed this driver in EL1, that's the m1n1 hypervisor.
-		 * Go through the motions but do a normal WFI idle, since it will
-		 * trap out the WFI idle stuff anyway. This avoids noise and slowness.
-		 */
-		if (is_kernel_in_hyp_mode())
-			apple_cpu_deep_wfi();
-		else
-			cpu_do_idle();
-
+		apple_cpu_deep_wfi();
 		break;
 	default:
 		WARN_ON(1);
