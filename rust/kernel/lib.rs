@@ -21,6 +21,7 @@
 #![feature(ptr_sub_ptr)]
 #![feature(sized_type_properties)]
 #![feature(slice_range)]
+#![feature(type_alias_impl_trait)]
 #![feature(unsize)]
 #![allow(stable_features)]
 // Stable in Rust 1.83
