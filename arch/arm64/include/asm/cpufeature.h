@@ -915,6 +915,11 @@ static inline unsigned int get_vmid_bits(u64 mmfr1)
 	return 8;
 }
 
+static __always_inline bool system_has_actlr_state(void)
+{
+	return false;
+}
+
 struct arm64_ftr_reg *get_arm64_ftr_reg(u32 sys_id);
 
 extern struct arm64_ftr_override id_aa64mmfr1_override;
