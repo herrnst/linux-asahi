@@ -532,6 +532,25 @@ static void actlr_thread_switch(struct task_struct *next)
 	write_sysreg(next->thread.actlr, actlr_el1);
 }
 
+#ifdef CONFIG_ARM64_MEMORY_MODEL_CONTROL
+int arch_prctl_mem_model_get(struct task_struct *t)
+{
+	return PR_SET_MEM_MODEL_DEFAULT;
+}
+
+int arch_prctl_mem_model_set(struct task_struct *t, unsigned long val)
+{
+	if (cpus_have_const_cap(ARM64_HAS_TSO_FIXED) &&
+	    val == PR_SET_MEM_MODEL_TSO)
+		return 0;
+
+	if (val == PR_SET_MEM_MODEL_DEFAULT)
+		return 0;
+
+	return -EINVAL;
+}
+#endif
+
 /*
  * Thread switching.
  */
@@ -670,6 +689,10 @@ void arch_setup_new_exec(void)
 	if (task_spec_ssb_noexec(current)) {
 		arch_prctl_spec_ctrl_set(current, PR_SPEC_STORE_BYPASS,
 					 PR_SPEC_ENABLE);
+	}
+
+	if (IS_ENABLED(CONFIG_ARM64_MEMORY_MODEL_CONTROL)) {
+		arch_prctl_mem_model_set(current, PR_SET_MEM_MODEL_DEFAULT);
 	}
 }
 
