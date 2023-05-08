@@ -909,6 +909,12 @@ static inline unsigned int get_vmid_bits(u64 mmfr1)
 }
 
 s64 arm64_ftr_safe_value(const struct arm64_ftr_bits *ftrp, s64 new, s64 cur);
+
+static __always_inline bool system_has_actlr_state(void)
+{
+	return false;
+}
+
 struct arm64_ftr_reg *get_arm64_ftr_reg(u32 sys_id);
 
 extern struct arm64_ftr_override id_aa64mmfr1_override;
