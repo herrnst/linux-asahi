@@ -917,7 +917,8 @@ static inline unsigned int get_vmid_bits(u64 mmfr1)
 
 static __always_inline bool system_has_actlr_state(void)
 {
-	return false;
+	return IS_ENABLED(CONFIG_ARM64_ACTLR_STATE) &&
+		cpus_have_const_cap(ARM64_HAS_TSO_APPLE);
 }
 
 struct arm64_ftr_reg *get_arm64_ftr_reg(u32 sys_id);
