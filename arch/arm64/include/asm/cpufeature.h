@@ -912,7 +912,8 @@ s64 arm64_ftr_safe_value(const struct arm64_ftr_bits *ftrp, s64 new, s64 cur);
 
 static __always_inline bool system_has_actlr_state(void)
 {
-	return false;
+	return IS_ENABLED(CONFIG_ARM64_ACTLR_STATE) &&
+		cpus_have_const_cap(ARM64_HAS_TSO_APPLE);
 }
 
 struct arm64_ftr_reg *get_arm64_ftr_reg(u32 sys_id);
