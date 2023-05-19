@@ -544,12 +544,12 @@ macro_rules! stack_try_pin_init {
 // module `__internal` inside of `init/__internal.rs`.
 #[macro_export]
 macro_rules! pin_init {
-    ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
+    ($(&$this:ident in)? $t:ident $(::$p:ident)* $(::<$($generics:ty),* $(,)?>)? {
         $($fields:tt)*
     }) => {
         $crate::try_pin_init!(parse_zeroable_end:
             @this($($this)?),
-            @typ($t $(::<$($generics),*>)?),
+            @typ($t $(::$p)* $(::<$($generics),*>)?),
             @fields($($fields)*),
             @error(::core::convert::Infallible),
             @munch_fields($($fields)*),
@@ -598,23 +598,23 @@ macro_rules! pin_init {
 // module `__internal` inside of `init/__internal.rs`.
 #[macro_export]
 macro_rules! try_pin_init {
-    ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
+    ($(&$this:ident in)? $t:ident $(::$p:ident)* $(::<$($generics:ty),* $(,)?>)? {
         $($fields:tt)*
     }) => {
         $crate::try_pin_init!(parse_zeroable_end:
             @this($($this)?),
-            @typ($t $(::<$($generics),*>)? ),
+            @typ($t $(::$p)* $(::<$($generics),*>)? ),
             @fields($($fields)*),
             @error($crate::error::Error),
             @munch_fields($($fields)*),
         )
     };
-    ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
+    ($(&$this:ident in)? $t:ident $(::$p:ident)* $(::<$($generics:ty),* $(,)?>)? {
         $($fields:tt)*
     }? $err:ty) => {
         $crate::try_pin_init!(parse_zeroable_end:
             @this($($this)?),
-            @typ($t $(::<$($generics),*>)? ),
+            @typ($t $(::$p)* $(::<$($generics),*>)? ),
             @fields($($fields)*),
             @error($err),
             @munch_fields($($fields)*),
@@ -622,14 +622,14 @@ macro_rules! try_pin_init {
     };
     (parse_zeroable_end:
         @this($($this:ident)?),
-        @typ($t:ident $(::<$($generics:ty),*>)?),
+        @typ($t:ident $(::$p:ident)* $(::<$($generics:ty),*>)?),
         @fields($($fields:tt)*),
         @error($err:ty),
         @munch_fields(),
     ) => {
         $crate::try_pin_init!(
             @this($($this)?),
-            @typ($t $(::<$($generics),*>)?),
+            @typ($t $(::$p)* $(::<$($generics),*>)?),
             @fields($($fields)*),
             @error($err),
             @zeroed(), // nothing means we do not zero unmentioned fields
@@ -637,14 +637,14 @@ macro_rules! try_pin_init {
     };
     (parse_zeroable_end:
         @this($($this:ident)?),
-        @typ($t:ident $(::<$($generics:ty),*>)?),
+        @typ($t:ident $(::$p:ident)* $(::<$($generics:ty),*>)?),
         @fields($($fields:tt)*),
         @error($err:ty),
         @munch_fields(..Zeroable::zeroed()),
     ) => {
         $crate::try_pin_init!(
             @this($($this)?),
-            @typ($t $(::<$($generics),*>)?),
+            @typ($t $(::$p)* $(::<$($generics),*>)?),
             @fields($($fields)*),
             @error($err),
             @zeroed(()), // () means we zero unmentioned fields
@@ -652,14 +652,14 @@ macro_rules! try_pin_init {
     };
     (parse_zeroable_end:
         @this($($this:ident)?),
-        @typ($t:ident $(::<$($generics:ty),*>)?),
+        @typ($t:ident $(::$p:ident)* $(::<$($generics:ty),*>)?),
         @fields($($fields:tt)*),
         @error($err:ty),
         @munch_fields($ignore:tt $($rest:tt)*),
     ) => {
         $crate::try_pin_init!(parse_zeroable_end:
             @this($($this)?),
-            @typ($t $(::<$($generics),*>)?),
+            @typ($t $(::$p)* $(::<$($generics),*>)?),
             @fields($($fields)*),
             @error($err),
             @munch_fields($($rest)*),
@@ -667,7 +667,7 @@ macro_rules! try_pin_init {
      };
     (
         @this($($this:ident)?),
-        @typ($t:ident $(::<$($generics:ty),*>)?),
+        @typ($t:ident $(::$p:ident)* $(::<$($generics:ty),*>)?),
         @fields($($fields:tt)*),
         @error($err:ty),
         @zeroed($($init_zeroed:expr)?),
@@ -679,7 +679,7 @@ macro_rules! try_pin_init {
         // Get the pin data from the supplied type.
         let data = unsafe {
             use $crate::init::__internal::HasPinData;
-            $t$(::<$($generics),*>)?::__pin_data()
+            $t$(::$p)*$(::<$($generics),*>)?::__pin_data()
         };
         // Ensure that `data` really is of type `PinData` and help with type inference:
         let init = $crate::init::__internal::PinData::make_closure::<_, __InitOk, $err>(
@@ -719,7 +719,7 @@ macro_rules! try_pin_init {
                         (|| {
                             $crate::try_pin_init!(make_initializer:
                                 @slot(slot),
-                                @type_name($t),
+                                @type_name($t$(::$p)*),
                                 @munch_fields($($fields)*,),
                                 @acc(),
                             );
@@ -805,7 +805,7 @@ macro_rules! try_pin_init {
     };
     (make_initializer:
         @slot($slot:ident),
-        @type_name($t:ident),
+        @type_name($t:ident $(::$p:ident)*),
         @munch_fields(..Zeroable::zeroed() $(,)?),
         @acc($($acc:tt)*),
     ) => {
@@ -819,7 +819,7 @@ macro_rules! try_pin_init {
             let mut zeroed = ::core::mem::zeroed();
             ::core::ptr::write($slot, zeroed);
             zeroed = ::core::mem::zeroed();
-            ::core::ptr::write($slot, $t {
+            ::core::ptr::write($slot, $t$(::$p)* {
                 $($acc)*
                 ..zeroed
             });
@@ -827,7 +827,7 @@ macro_rules! try_pin_init {
     };
     (make_initializer:
         @slot($slot:ident),
-        @type_name($t:ident),
+        @type_name($t:ident $(::$p:ident)*),
         @munch_fields($(,)?),
         @acc($($acc:tt)*),
     ) => {
@@ -835,33 +835,33 @@ macro_rules! try_pin_init {
         // Since we are in the `if false` branch, this will never get executed. We abuse `slot` to
         // get the correct type inference here:
         unsafe {
-            ::core::ptr::write($slot, $t {
+            ::core::ptr::write($slot, $t$(::$p)* {
                 $($acc)*
             });
         }
     };
     (make_initializer:
         @slot($slot:ident),
-        @type_name($t:ident),
+        @type_name($t:ident $(::$p:ident)*),
         @munch_fields($field:ident <- $val:expr, $($rest:tt)*),
         @acc($($acc:tt)*),
     ) => {
         $crate::try_pin_init!(make_initializer:
             @slot($slot),
-            @type_name($t),
+            @type_name($t$(::$p)*),
             @munch_fields($($rest)*),
             @acc($($acc)* $field: ::core::panic!(),),
         );
     };
     (make_initializer:
         @slot($slot:ident),
-        @type_name($t:ident),
+        @type_name($t:ident $(::$p:ident)*),
         @munch_fields($field:ident $(: $val:expr)?, $($rest:tt)*),
         @acc($($acc:tt)*),
     ) => {
         $crate::try_pin_init!(make_initializer:
             @slot($slot),
-            @type_name($t),
+            @type_name($t$(::$p)*),
             @munch_fields($($rest)*),
             @acc($($acc)* $field: ::core::panic!(),),
         );
@@ -887,12 +887,12 @@ macro_rules! try_pin_init {
 // module `__internal` inside of `init/__internal.rs`.
 #[macro_export]
 macro_rules! init {
-    ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
+    ($(&$this:ident in)? $t:ident $(::$p:ident)* $(::<$($generics:ty),* $(,)?>)? {
         $($fields:tt)*
     }) => {
         $crate::try_init!(parse_zeroable_end:
             @this($($this)?),
-            @typ($t $(::<$($generics),*>)?),
+            @typ($t $(::$p)* $(::<$($generics),*>)?),
             @fields($($fields)*),
             @error(::core::convert::Infallible),
             @munch_fields($($fields)*),
@@ -935,23 +935,23 @@ macro_rules! init {
 // module `__internal` inside of `init/__internal.rs`.
 #[macro_export]
 macro_rules! try_init {
-    ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
+    ($(&$this:ident in)? $t:ident $(::$p:ident)* $(::<$($generics:ty),* $(,)?>)? {
         $($fields:tt)*
     }) => {
         $crate::try_init!(parse_zeroable_end:
             @this($($this)?),
-            @typ($t $(::<$($generics),*>)?),
+            @typ($t $(::$p)* $(::<$($generics),*>)?),
             @fields($($fields)*),
             @error($crate::error::Error),
             @munch_fields($($fields)*),
         )
     };
-    ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
+    ($(&$this:ident in)? $t:ident $(::$p:ident)* $(::<$($generics:ty),* $(,)?>)? {
         $($fields:tt)*
     }? $err:ty) => {
         $crate::try_init!(parse_zeroable_end:
             @this($($this)?),
-            @typ($t $(::<$($generics),*>)?),
+            @typ($t $(::$p)* $(::<$($generics),*>)?),
             @fields($($fields)*),
             @error($err),
             @munch_fields($($fields)*),
@@ -959,14 +959,14 @@ macro_rules! try_init {
     };
     (parse_zeroable_end:
         @this($($this:ident)?),
-        @typ($t:ident $(::<$($generics:ty),*>)?),
+        @typ($t:ident $(::$p:ident)* $(::<$($generics:ty),*>)?),
         @fields($($fields:tt)*),
         @error($err:ty),
         @munch_fields(),
     ) => {
         $crate::try_init!(
             @this($($this)?),
-            @typ($t $(::<$($generics),*>)?),
+            @typ($t $(::$p)* $(::<$($generics),*>)?),
             @fields($($fields)*),
             @error($err),
             @zeroed(), // Nothing means we do not zero unmentioned fields.
@@ -974,14 +974,14 @@ macro_rules! try_init {
     };
     (parse_zeroable_end:
         @this($($this:ident)?),
-        @typ($t:ident $(::<$($generics:ty),*>)?),
+        @typ($t:ident $(::$p:ident)* $(::<$($generics:ty),*>)?),
         @fields($($fields:tt)*),
         @error($err:ty),
         @munch_fields(..Zeroable::zeroed()),
     ) => {
         $crate::try_init!(
             @this($($this)?),
-            @typ($t $(::<$($generics),*>)?),
+            @typ($t $(::$p)* $(::<$($generics),*>)?),
             @fields($($fields)*),
             @error($err),
             @zeroed(()), // () means we zero unmentioned fields.
@@ -989,14 +989,14 @@ macro_rules! try_init {
     };
     (parse_zeroable_end:
         @this($($this:ident)?),
-        @typ($t:ident $(::<$($generics:ty),*>)?),
+        @typ($t:ident $(::$p:ident)* $(::<$($generics:ty),*>)?),
         @fields($($fields:tt)*),
         @error($err:ty),
         @munch_fields($ignore:tt $($rest:tt)*),
     ) => {
         $crate::try_init!(parse_zeroable_end:
             @this($($this)?),
-            @typ($t $(::<$($generics),*>)?),
+            @typ($t $(::$p)* $(::<$($generics),*>)?),
             @fields($($fields)*),
             @error($err),
             @munch_fields($($rest)*),
@@ -1004,7 +1004,7 @@ macro_rules! try_init {
      };
     (
         @this($($this:ident)?),
-        @typ($t:ident $(::<$($generics:ty),*>)?),
+        @typ($t:ident $(::$p:ident)* $(::<$($generics:ty),*>)?),
         @fields($($fields:tt)*),
         @error($err:ty),
         @zeroed($($init_zeroed:expr)?),
@@ -1016,7 +1016,7 @@ macro_rules! try_init {
         // Get the init data from the supplied type.
         let data = unsafe {
             use $crate::init::__internal::HasInitData;
-            $t$(::<$($generics),*>)?::__init_data()
+            $t$(::$p)*$(::<$($generics),*>)?::__init_data()
         };
         // Ensure that `data` really is of type `InitData` and help with type inference:
         let init = $crate::init::__internal::InitData::make_closure::<_, __InitOk, $err>(
@@ -1055,7 +1055,7 @@ macro_rules! try_init {
                         (|| {
                             $crate::try_init!(make_initializer:
                                 @slot(slot),
-                                @type_name($t),
+                                @type_name($t$(::$p)*),
                                 @munch_fields($($fields)*,),
                                 @acc(),
                             );
@@ -1140,7 +1140,7 @@ macro_rules! try_init {
     };
     (make_initializer:
         @slot($slot:ident),
-        @type_name($t:ident),
+        @type_name($t:ident $(::$p:ident)*),
         @munch_fields(..Zeroable::zeroed() $(,)?),
         @acc($($acc:tt)*),
     ) => {
@@ -1154,7 +1154,7 @@ macro_rules! try_init {
             let mut zeroed = ::core::mem::zeroed();
             ::core::ptr::write($slot, zeroed);
             zeroed = ::core::mem::zeroed();
-            ::core::ptr::write($slot, $t {
+            ::core::ptr::write($slot, $t$(::$p)* {
                 $($acc)*
                 ..zeroed
             });
@@ -1162,7 +1162,7 @@ macro_rules! try_init {
     };
     (make_initializer:
         @slot($slot:ident),
-        @type_name($t:ident),
+        @type_name($t:ident $(::$p:ident)*),
         @munch_fields($(,)?),
         @acc($($acc:tt)*),
     ) => {
@@ -1170,33 +1170,33 @@ macro_rules! try_init {
         // Since we are in the `if false` branch, this will never get executed. We abuse `slot` to
         // get the correct type inference here:
         unsafe {
-            ::core::ptr::write($slot, $t {
+            ::core::ptr::write($slot, $t$(::$p)* {
                 $($acc)*
             });
         }
     };
     (make_initializer:
         @slot($slot:ident),
-        @type_name($t:ident),
+        @type_name($t:ident $(::$p:ident)*),
         @munch_fields($field:ident <- $val:expr, $($rest:tt)*),
         @acc($($acc:tt)*),
     ) => {
         $crate::try_init!(make_initializer:
             @slot($slot),
-            @type_name($t),
+            @type_name($t$(::$p)*),
             @munch_fields($($rest)*),
             @acc($($acc)*$field: ::core::panic!(),),
         );
     };
     (make_initializer:
         @slot($slot:ident),
-        @type_name($t:ident),
+        @type_name($t:ident $(::$p:ident)*),
         @munch_fields($field:ident $(: $val:expr)?, $($rest:tt)*),
         @acc($($acc:tt)*),
     ) => {
         $crate::try_init!(make_initializer:
             @slot($slot),
-            @type_name($t),
+            @type_name($t$(::$p)*),
             @munch_fields($($rest)*),
             @acc($($acc)*$field: ::core::panic!(),),
         );
