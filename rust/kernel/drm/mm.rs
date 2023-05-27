@@ -169,7 +169,7 @@ impl<A: AllocInner<T>, T> Allocator<A, T> {
         size: u64,
         inner: A,
         name: &'static CStr,
-        lock_key: &'static LockClassKey,
+        lock_key: LockClassKey,
     ) -> Result<Allocator<A, T>> {
         // SAFETY: We call `Mutex::init_lock` below.
         let mm = UniqueArc::pin_init(Mutex::new(
