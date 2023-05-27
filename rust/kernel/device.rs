@@ -254,12 +254,12 @@ pub struct Data<T, U, V> {
 #[macro_export]
 macro_rules! new_device_data {
     ($reg:expr, $res:expr, $gen:expr, $name:literal) => {{
-        static CLASS1: $crate::sync::LockClassKey = $crate::sync::LockClassKey::new();
+        static CLASS1: $crate::sync::LockClassKey = $crate::static_lock_class!();
         let regs = $reg;
         let res = $res;
         let gen = $gen;
         let name = $crate::c_str!($name);
-        $crate::device::Data::try_new(regs, res, gen, name, &CLASS1)
+        $crate::device::Data::try_new(regs, res, gen, name, CLASS1)
     }};
 }
 
@@ -273,7 +273,7 @@ impl<T, U, V> Data<T, U, V> {
         resources: U,
         general: V,
         name: &'static CStr,
-        key1: &'static LockClassKey,
+        key1: LockClassKey,
     ) -> Result<Pin<UniqueArc<Self>>> {
         let ret = UniqueArc::pin_init(pin_init!(Self {
             registrations <- Mutex::new(registrations, name, key1),
