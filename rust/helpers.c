@@ -24,6 +24,7 @@
 #include <linux/errname.h>
 #include <linux/refcount.h>
 #include <linux/mutex.h>
+#include <linux/siphash.h>
 #include <linux/spinlock.h>
 #include <linux/sched/signal.h>
 #include <linux/wait.h>
@@ -139,6 +140,13 @@ void rust_helper_put_task_struct(struct task_struct *t)
 	put_task_struct(t);
 }
 EXPORT_SYMBOL_GPL(rust_helper_put_task_struct);
+
+u64 rust_helper_siphash(const void *data, size_t len,
+			const siphash_key_t *key)
+{
+	return siphash(data, len, key);
+}
+EXPORT_SYMBOL_GPL(rust_helper_siphash);
 
 /*
  * We use `bindgen`'s `--size_t-is-usize` option to bind the C `size_t` type
