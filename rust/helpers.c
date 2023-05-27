@@ -28,6 +28,7 @@
 #include <linux/mutex.h>
 #include <linux/refcount.h>
 #include <linux/sched/signal.h>
+#include <linux/siphash.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 
@@ -148,6 +149,13 @@ struct kunit *rust_helper_kunit_get_current_test(void)
 	return kunit_get_current_test();
 }
 EXPORT_SYMBOL_GPL(rust_helper_kunit_get_current_test);
+
+u64 rust_helper_siphash(const void *data, size_t len,
+			const siphash_key_t *key)
+{
+	return siphash(data, len, key);
+}
+EXPORT_SYMBOL_GPL(rust_helper_siphash);
 
 /*
  * `bindgen` binds the C `size_t` type as the Rust `usize` type, so we can
