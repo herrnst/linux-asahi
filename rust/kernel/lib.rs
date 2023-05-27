@@ -39,6 +39,7 @@ pub mod ioctl;
 pub mod kunit;
 pub mod prelude;
 pub mod print;
+pub mod siphash;
 mod static_assert;
 #[doc(hidden)]
 pub mod std_vendor;
