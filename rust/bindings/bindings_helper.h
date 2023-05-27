@@ -8,6 +8,7 @@
 
 #include <linux/errname.h>
 #include <linux/slab.h>
+#include <linux/lockdep.h>
 #include <linux/refcount.h>
 #include <linux/wait.h>
 #include <linux/siphash.h>
