@@ -7,8 +7,7 @@
 use crate::{
     bindings,
     error::{to_result, Result},
-    str::CStr,
-    sync::{Arc, LockClassKey, Mutex, UniqueArc},
+    sync::{Arc, Mutex, UniqueArc},
     types::Opaque,
 };
 
@@ -164,19 +163,10 @@ impl<A: AllocInner<T>, T> Allocator<A, T> {
     ///
     /// The user may optionally provide an inner object representing allocator state, which will
     /// be protected by the same lock. If not required, `()` can be used.
-    pub fn new(
-        start: u64,
-        size: u64,
-        inner: A,
-        name: &'static CStr,
-        lock_key: LockClassKey,
-    ) -> Result<Allocator<A, T>> {
+    #[track_caller]
+    pub fn new(start: u64, size: u64, inner: A) -> Result<Allocator<A, T>> {
         // SAFETY: We call `Mutex::init_lock` below.
-        let mm = UniqueArc::pin_init(Mutex::new(
-            MmInner(Opaque::uninit(), inner, PhantomData),
-            name,
-            lock_key,
-        ))?;
+        let mm = UniqueArc::pin_init(Mutex::new(MmInner(Opaque::uninit(), inner, PhantomData)))?;
 
         unsafe {
             // SAFETY: The Opaque instance provides a valid pointer, and it is initialized after
