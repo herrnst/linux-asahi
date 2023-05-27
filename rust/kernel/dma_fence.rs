@@ -422,16 +422,12 @@ pub struct FenceContexts {
     count: u32,
     seqnos: Vec<AtomicU64>,
     lock_name: &'static CStr,
-    lock_key: &'static LockClassKey,
+    lock_key: LockClassKey,
 }
 
 impl FenceContexts {
     /// Create a new set of fence contexts.
-    pub fn new(
-        count: u32,
-        name: &'static CStr,
-        key: &'static LockClassKey,
-    ) -> Result<FenceContexts> {
+    pub fn new(count: u32, name: &'static CStr, key: LockClassKey) -> Result<FenceContexts> {
         let mut seqnos: Vec<AtomicU64> = Vec::new();
 
         seqnos.try_reserve(count as usize)?;
