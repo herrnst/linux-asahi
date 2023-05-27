@@ -1111,6 +1111,7 @@ pub trait InPlaceInit<T>: Sized {
     /// type.
     ///
     /// If `T: !Unpin` it will not be able to move afterwards.
+    #[track_caller]
     fn try_pin_init<E>(init: impl PinInit<T, E>, flags: Flags) -> Result<Pin<Self>, E>
     where
         E: From<AllocError>;
@@ -1119,6 +1120,7 @@ pub trait InPlaceInit<T>: Sized {
     /// type.
     ///
     /// If `T: !Unpin` it will not be able to move afterwards.
+    #[track_caller]
     fn pin_init<E>(init: impl PinInit<T, E>, flags: Flags) -> error::Result<Pin<Self>>
     where
         Error: From<E>,
@@ -1131,11 +1133,13 @@ pub trait InPlaceInit<T>: Sized {
     }
 
     /// Use the given initializer to in-place initialize a `T`.
+    #[track_caller]
     fn try_init<E>(init: impl Init<T, E>, flags: Flags) -> Result<Self, E>
     where
         E: From<AllocError>;
 
     /// Use the given initializer to in-place initialize a `T`.
+    #[track_caller]
     fn init<E>(init: impl Init<T, E>, flags: Flags) -> error::Result<Self>
     where
         Error: From<E>,
@@ -1180,6 +1184,7 @@ impl<T> InPlaceInit<T> for Box<T> {
 
 impl<T> InPlaceInit<T> for UniqueArc<T> {
     #[inline]
+    #[track_caller]
     fn try_pin_init<E>(init: impl PinInit<T, E>, flags: Flags) -> Result<Pin<Self>, E>
     where
         E: From<AllocError>,
@@ -1194,6 +1199,7 @@ impl<T> InPlaceInit<T> for UniqueArc<T> {
     }
 
     #[inline]
+    #[track_caller]
     fn try_init<E>(init: impl Init<T, E>, flags: Flags) -> Result<Self, E>
     where
         E: From<AllocError>,
