@@ -276,7 +276,7 @@ impl<T, U, V> Data<T, U, V> {
         key1: LockClassKey,
     ) -> Result<Pin<UniqueArc<Self>>> {
         let ret = UniqueArc::pin_init(pin_init!(Self {
-            registrations <- Mutex::new(registrations, name, key1),
+            registrations <- Mutex::new_with_key(registrations, name, key1),
             resources,
             general,
         }))?;
