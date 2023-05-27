@@ -17,6 +17,7 @@
 #include <linux/mdio.h>
 #include <linux/phy.h>
 #include <linux/refcount.h>
+#include <linux/siphash.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/wait.h>
