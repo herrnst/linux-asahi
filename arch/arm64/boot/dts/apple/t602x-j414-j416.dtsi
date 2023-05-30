@@ -136,8 +136,10 @@
 };
 
 &mtp_hid {
+	apple,afe-reset-gpios = <&smc_gpio 25 GPIO_ACTIVE_LOW>;
+	apple,stm-reset-gpios = <&smc_gpio 26 GPIO_ACTIVE_LOW>;
+
 	mtp_mt: multi-touch {
-		apple,afe-reset-gpios = <&smc_gpio 25 GPIO_ACTIVE_LOW>;
 	};
 
 	keyboard: keyboard {
@@ -146,7 +148,6 @@
 	};
 
 	stm {
-		apple,stm-reset-gpios = <&smc_gpio 26 GPIO_ACTIVE_LOW>;
 	};
 
 	actuator {
