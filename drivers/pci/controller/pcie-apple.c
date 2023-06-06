@@ -598,7 +598,7 @@ static int apple_pcie_probe_port(struct device_node *np)
 	gpiod_put(gd);
 
 	gd = fwnode_gpiod_get_index(of_fwnode_handle(np), "pwren", 0,
-				    GPIOD_OUT_LOW, "PWREN");
+				    GPIOD_ASIS, "PWREN");
 	if (IS_ERR(gd)) {
 		if (PTR_ERR(gd) != -ENOENT)
 			return PTR_ERR(gd);
@@ -623,7 +623,7 @@ static int apple_pcie_setup_link(struct apple_pcie *pcie,
 		return PTR_ERR(reset);
 
 	pwren = devm_fwnode_gpiod_get(pcie->dev, of_fwnode_handle(np), "pwren",
-					    GPIOD_OUT_LOW, "PWREN");
+					    GPIOD_ASIS, "PWREN");
 	if (IS_ERR(pwren)) {
 		if (PTR_ERR(pwren) == -ENOENT)
 			pwren = NULL;
