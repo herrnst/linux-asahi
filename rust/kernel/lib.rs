@@ -165,9 +165,6 @@ fn panic(info: &core::panic::PanicInfo<'_>) -> ! {
     pr_emerg!("{}\n", info);
     // SAFETY: FFI call.
     unsafe { bindings::BUG() };
-    // Bindgen currently does not recognize `__noreturn` so `BUG` returns `()`
-    // instead of `!`. See <https://github.com/rust-lang/rust-bindgen/issues/2094>.
-    loop {}
 }
 
 /// Calculates the offset of a field from the beginning of the struct it belongs to.
