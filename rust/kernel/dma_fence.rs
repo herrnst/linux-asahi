@@ -311,6 +311,7 @@ impl<T: FenceOps> FenceObject<T> {
         } else {
             None
         },
+        set_deadline: None,
     };
 }
 
