@@ -261,7 +261,6 @@ impl<T: DriverObject> drv::AllocImpl for Object<T> {
         gem_prime_mmap: Some(bindings::drm_gem_prime_mmap),
         dumb_create: Some(bindings::drm_gem_shmem_dumb_create),
         dumb_map_offset: None,
-        dumb_destroy: None,
     };
 }
 

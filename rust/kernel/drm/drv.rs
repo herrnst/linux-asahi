@@ -117,13 +117,6 @@ pub struct AllocOps {
             offset: *mut u64,
         ) -> core::ffi::c_int,
     >,
-    pub(crate) dumb_destroy: Option<
-        unsafe extern "C" fn(
-            file_priv: *mut bindings::drm_file,
-            dev: *mut bindings::drm_device,
-            handle: u32,
-        ) -> core::ffi::c_int,
-    >,
 }
 
 /// Trait for memory manager implementations. Implemented internally.
@@ -233,7 +226,6 @@ impl<T: Driver> Registration<T> {
         gem_prime_mmap: T::Object::ALLOC_OPS.gem_prime_mmap,
         dumb_create: T::Object::ALLOC_OPS.dumb_create,
         dumb_map_offset: T::Object::ALLOC_OPS.dumb_map_offset,
-        dumb_destroy: T::Object::ALLOC_OPS.dumb_destroy,
 
         major: T::INFO.major,
         minor: T::INFO.minor,
