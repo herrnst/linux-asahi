@@ -214,7 +214,7 @@ impl<T: DriverObject> Object<T> {
     ///
     /// Should be called before any mappings are made.
     pub fn set_wc(&mut self, map_wc: bool) {
-        unsafe { (*self.mut_shmem()).map_wc = map_wc };
+        unsafe { (*self.mut_shmem()).set_map_wc(map_wc) };
     }
 }
 
