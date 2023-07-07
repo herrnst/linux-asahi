@@ -293,7 +293,6 @@ impl super::Queue::ver {
                     registers: fw::job::raw::RegisterArray::new(
                         inner_weak_ptr!(_ptr, registers.registers),
                         |r| {
-                            r.add(0x1c9e8, 0);
                             r.add(0x1a510, inner.preempt_buf.gpu_pointer().into());
                             r.add(0x1a420, cmdbuf.encoder_ptr);
                             // buf2-5 Only if internal program is used
