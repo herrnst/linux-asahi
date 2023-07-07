@@ -484,10 +484,10 @@ struct drm_asahi_cmd_compute {
 	__u32 attachment_count;
 	__u32 pad;
 
-	__u64 buffer_descriptor;
+	__u64 helper_arg;
 
 	__u32 buffer_descriptor_size; /* ? */
-	__u32 ctx_switch_prog;
+	__u32 helper_program;
 
 	__u32 encoder_id;
 	__u32 cmd_id;
