@@ -364,6 +364,14 @@ struct drm_asahi_cmd_render {
 	__u64 depth_bias_array;
 	__u64 visibility_result_buffer;
 
+	__u64 vertex_sampler_array;
+	__u32 vertex_sampler_count;
+	__u32 vertex_sampler_max;
+
+	__u64 fragment_sampler_array;
+	__u32 fragment_sampler_count;
+	__u32 fragment_sampler_max;
+
 	__u64 zls_ctrl;
 	__u64 ppp_multisamplectl;
 	__u32 ppp_ctrl;
@@ -422,7 +430,7 @@ struct drm_asahi_cmd_render {
 #define ASAHI_RENDER_UNK_SET_RELOAD_ZLSCTRL	(1UL << 14)
 #define ASAHI_RENDER_UNK_SET_UNK_BUF_10		(1UL << 15)
 
-#define ASAHI_RENDER_UNK_SET_FRG_IGCMPUNK44	(1UL << 20)
+#define ASAHI_RENDER_UNK_SET_FRG_UNK_MASK	(1UL << 20)
 #define ASAHI_RENDER_UNK_SET_FRG_SEQ_BUFFER	(1UL << 21)
 #define ASAHI_RENDER_UNK_SET_IOGPU_UNK54	(1UL << 22)
 #define ASAHI_RENDER_UNK_SET_IOGPU_UNK56	(1UL << 23)
@@ -431,8 +439,7 @@ struct drm_asahi_cmd_render {
 #define ASAHI_RENDER_UNK_SET_VTX_UNK_F0		(1UL << 26)
 #define ASAHI_RENDER_UNK_SET_VTX_UNK_F8		(1UL << 27)
 #define ASAHI_RENDER_UNK_SET_VTX_UNK_118	(1UL << 28)
-#define ASAHI_RENDER_UNK_SET_VTX_IGCMPUNK44	(1UL << 29)
-#define ASAHI_RENDER_UNK_SET_VTX_SEQ_BUFFER	(1UL << 30)
+#define ASAHI_RENDER_UNK_SET_VTX_UNK_MASK	(1UL << 29)
 
 #define ASAHI_RENDER_EXT_UNKNOWNS	0xff00
 
@@ -460,8 +467,7 @@ struct drm_asahi_cmd_render_unknowns {
 	__u64 frg_unk_40;
 	__u64 reload_zlsctrl;
 	__u64 unk_buf_10;
-	__u64 frg_iogpucmp_unk44;
-	__u64 frg_seq_buffer;
+	__u64 frg_unk_mask;
 
 	__u64 iogpu_unk54;
 	__u64 iogpu_unk56;
@@ -470,8 +476,7 @@ struct drm_asahi_cmd_render_unknowns {
 	__u64 vtx_unk_f0;
 	__u64 vtx_unk_f8;
 	__u64 vtx_unk_118;
-	__u64 vtx_iogpucmp_unk44;
-	__u64 vtx_seq_buffer;
+	__u64 vtx_unk_mask;
 };
 
 struct drm_asahi_cmd_compute {
@@ -492,8 +497,12 @@ struct drm_asahi_cmd_compute {
 	__u32 encoder_id;
 	__u32 cmd_id;
 
+	__u64 sampler_array;
+	__u32 sampler_count;
+	__u32 sampler_max;
+
 	__u32 iogpu_unk_40;
-	__u32 iogpu_unk_44;
+	__u32 unk_mask;
 };
 
 enum drm_asahi_status {

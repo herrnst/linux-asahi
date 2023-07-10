@@ -237,11 +237,6 @@ impl Scene::ver {
             .map(|c| c.meta.gpu_offset_pointer(self.meta4_off))
     }
 
-    /// Returns the GPU pointer to an unknown buffer with incrementing numbers.
-    pub(crate) fn seq_buf_pointer(&self) -> GpuPointer<'_, &'_ [u64]> {
-        self.object.seq_buf.gpu_pointer()
-    }
-
     /// Returns the number of TVB bytes used for this scene.
     pub(crate) fn used_bytes(&self) -> usize {
         self.object
@@ -555,11 +550,6 @@ impl Buffer::ver {
             .lock()
             .array_empty(inner.preempt1_size + inner.preempt2_size + inner.preempt3_size)?;
 
-        let mut seq_buf = inner.ualloc.lock().array_empty(0x800)?;
-        for i in 1..0x400 {
-            seq_buf[i] = (i + 1) as u64;
-        }
-
         let tpc = match inner.tpc.as_ref() {
             Some(buf) if buf.len() >= tpc_size => buf.clone(),
             _ => {
@@ -626,7 +616,6 @@ impl Buffer::ver {
                 tpc: tpc,
                 clustering: clustering,
                 preempt_buf: preempt_buf,
-                seq_buf: seq_buf,
                 #[ver(G >= G14X)]
                 control_word: _gpu.array_empty(1)?,
             }),

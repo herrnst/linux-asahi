@@ -535,11 +535,8 @@ impl super::Queue::ver {
             #[ver(G >= G14X)]
             unks.unk_buf_10 = 0;
         }
-        if unks.flags & uapi::ASAHI_RENDER_UNK_SET_FRG_IGCMPUNK44 as u64 == 0 {
-            unks.frg_iogpucmp_unk44 = 0xffffffff;
-        }
-        if unks.flags & uapi::ASAHI_RENDER_UNK_SET_FRG_SEQ_BUFFER as u64 == 0 {
-            unks.frg_seq_buffer = scene.seq_buf_pointer().into();
+        if unks.flags & uapi::ASAHI_RENDER_UNK_SET_FRG_UNK_MASK as u64 == 0 {
+            unks.frg_unk_mask = 0xffffffff;
         }
         if unks.flags & uapi::ASAHI_RENDER_UNK_SET_IOGPU_UNK54 as u64 == 0 {
             unks.iogpu_unk54 = 0x3a0012006b0003;
@@ -569,11 +566,8 @@ impl super::Queue::ver {
         if unks.flags & uapi::ASAHI_RENDER_UNK_SET_VTX_UNK_118 as u64 == 0 {
             unks.vtx_unk_118 = 0x1c;
         }
-        if unks.flags & uapi::ASAHI_RENDER_UNK_SET_VTX_IGCMPUNK44 as u64 == 0 {
-            unks.vtx_iogpucmp_unk44 = 0xffffffff;
-        }
-        if unks.flags & uapi::ASAHI_RENDER_UNK_SET_VTX_SEQ_BUFFER as u64 == 0 {
-            unks.vtx_seq_buffer = scene.seq_buf_pointer().into();
+        if unks.flags & uapi::ASAHI_RENDER_UNK_SET_VTX_UNK_MASK as u64 == 0 {
+            unks.vtx_unk_mask = 0xffffffff;
         }
 
         mod_dev_dbg!(self.dev, "[Submission {}] Create Frag\n", id);
@@ -1003,9 +997,10 @@ impl super::Queue::ver {
                         unk_10: 0x0, // fixed
                         encoder_id: cmdbuf.encoder_id,
                         unk_18: 0x0, // fixed
-                        iogpu_compute_unk44: unks.frg_iogpucmp_unk44 as u32,
-                        seq_buffer: U64(unks.frg_seq_buffer),
-                        unk_28: U64(0x0), // fixed
+                        unk_mask: unks.frg_unk_mask as u32,
+                        sampler_array: U64(cmdbuf.fragment_sampler_array),
+                        sampler_count: cmdbuf.fragment_sampler_count,
+                        sampler_max: cmdbuf.fragment_sampler_max,
                     }),
                     process_empty_tiles: (cmdbuf.flags
                         & uapi::ASAHI_RENDER_PROCESS_EMPTY_TILES as u64
@@ -1455,9 +1450,10 @@ impl super::Queue::ver {
                         unk_10: 0x0,    // fixed
                         encoder_id: cmdbuf.encoder_id,
                         unk_18: 0x0, // fixed
-                        iogpu_compute_unk44: unks.vtx_iogpucmp_unk44 as u32,
-                        seq_buffer: U64(unks.vtx_seq_buffer),
-                        unk_28: U64(0x0), // fixed
+                        unk_mask: unks.vtx_unk_mask as u32,
+                        sampler_array: U64(cmdbuf.vertex_sampler_array),
+                        sampler_count: cmdbuf.vertex_sampler_count,
+                        sampler_max: cmdbuf.vertex_sampler_max,
                     }),
                     unk_55c: 0,
                     unk_560: 0,
