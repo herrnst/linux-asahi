@@ -103,11 +103,6 @@ impl super::Queue::ver {
 
         let preempt_buf = self.ualloc.lock().array_empty(preempt_size)?;
 
-        let mut seq_buf = self.ualloc.lock().array_empty(0x800)?;
-        for i in 1..0x400 {
-            seq_buf[i] = (i + 1) as u64;
-        }
-
         mod_dev_dbg!(
             self.dev,
             "[Submission {}] Event #{} {:#x?} -> {:#x?}\n",
@@ -135,7 +130,6 @@ impl super::Queue::ver {
                 let vm_bind = vm_bind.clone();
                 try_init!(fw::compute::RunCompute::ver {
                     preempt_buf: preempt_buf,
-                    seq_buf: seq_buf,
                     micro_seq: {
                         let mut builder = microseq::Builder::new();
 
@@ -336,9 +330,10 @@ impl super::Queue::ver {
                         unk_10: 0x0,    // fixed
                         encoder_id: cmdbuf.encoder_id,
                         unk_18: 0x0, // fixed
-                        iogpu_compute_unk44: cmdbuf.iogpu_unk_44,
-                        seq_buffer: U64(inner.seq_buf.gpu_pointer().into()),
-                        unk_28: U64(0x0), // fixed
+                        unk_mask: cmdbuf.unk_mask,
+                        sampler_array: U64(cmdbuf.sampler_array),
+                        sampler_count: cmdbuf.sampler_count,
+                        sampler_max: cmdbuf.sampler_max,
                     }),
                     meta <- try_init!(fw::job::raw::JobMeta {
                         unk_0: 0,

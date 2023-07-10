@@ -32,9 +32,10 @@ pub(crate) mod raw {
         pub(crate) unk_10: u32,
         pub(crate) encoder_id: u32,
         pub(crate) unk_18: u32,
-        pub(crate) iogpu_compute_unk44: u32,
-        pub(crate) seq_buffer: U64,
-        pub(crate) unk_28: U64,
+        pub(crate) unk_mask: u32,
+        pub(crate) sampler_array: U64,
+        pub(crate) sampler_count: u32,
+        pub(crate) sampler_max: u32,
     }
 
     #[derive(Debug)]

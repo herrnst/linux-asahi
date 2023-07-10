@@ -100,7 +100,6 @@ pub(crate) mod raw {
 pub(crate) struct RunCompute {
     pub(crate) notifier: Arc<GpuObject<event::Notifier::ver>>,
     pub(crate) preempt_buf: GpuArray<u8>,
-    pub(crate) seq_buf: GpuArray<u64>,
     pub(crate) micro_seq: microseq::MicroSequence,
     pub(crate) vm_bind: mmu::VmBind,
     pub(crate) timestamps: Arc<GpuObject<job::JobTimestamps>>,
