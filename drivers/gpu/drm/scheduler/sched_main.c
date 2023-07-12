@@ -42,6 +42,59 @@
  *    the hardware.
  *
  * The jobs in a entity are always scheduled in the order that they were pushed.
+ *
+ * Lifetime rules
+ * --------------
+ *
+ * Getting object lifetimes right across the stack is critical to avoid UAF
+ * issues. The DRM scheduler has the following lifetime rules:
+ *
+ * - The scheduler must outlive all of its entities.
+ * - Jobs pushed to the scheduler are owned by it, and must only be freed
+ *   after the free_job() callback is called.
+ * - Scheduler fences are reference-counted and may outlive the scheduler.
+ * - The scheduler *may* be destroyed while jobs are still in flight.
+ * - There is no guarantee that all jobs have been freed when all entities
+ *   and the scheduled have been destroyed. Jobs may be freed asynchronously
+ *   after this point.
+ *
+ * If the scheduler is destroyed with jobs in flight, the following
+ * happens:
+ *
+ * - Jobs that were pushed but have not yet run will be destroyed as part
+ *   of the entity cleanup (which must happen before the scheduler itself
+ *   is destroyed, per the first rule above). This signals the job
+ *   finished fence with an error flag. This process runs asynchronously
+ *   after drm_sched_entity_destroy() returns.
+ * - Jobs that are in-flight on the hardware are "detached" from their
+ *   driver fence (the fence returned from the run_job() callback). In
+ *   this case, it is up to the driver to ensure that any bookkeeping or
+ *   internal data structures have separately managed lifetimes and that
+ *   the hardware either cancels the jobs or runs them to completion.
+ *   The DRM scheduler itself will immediately signal the job complete
+ *   fence (with an error flag) and then call free_job() as part of the
+ *   cleanup process.
+ *
+ * After the scheduler is destroyed, drivers *may* (but are not required to)
+ * skip signaling their remaining driver fences, as long as they have only ever
+ * been returned to the scheduler being destroyed as the return value from
+ * run_job() and not passed anywhere else. If these fences are used in any other
+ * context, then the driver *must* signal them, per the usual fence signaling
+ * rules.
+ *
+ * Resource management
+ * -------------------
+ *
+ * Drivers may need to acquire certain hardware resources (e.g. VM IDs) in order
+ * to run a job. This process must happen during the job's prepare() callback,
+ * not in the run() callback. If any resource is unavailable at job prepare time,
+ * the driver must return a suitable fence that can be waited on to wait for the
+ * resource to (potentially) become available.
+ *
+ * In order to avoid deadlocks, drivers must always acquire resources in the
+ * same order, and release them in opposite order when a job completes or if
+ * resource acquisition fails.
+ *
  */
 
 #include <linux/kthread.h>
