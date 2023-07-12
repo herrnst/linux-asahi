@@ -47,13 +47,6 @@ pub trait JobImpl: Sized {
         None // Equivalent to NULL function pointer
     }
 
-    /// Called before job execution to check whether the hardware is free enough to run the job.
-    /// This can be used to implement more complex hardware resource policies than the hw_submission
-    /// limit.
-    fn can_run(_job: &mut Job<Self>) -> bool {
-        true
-    }
-
     /// Called to execute the job once all of the dependencies have been resolved. This may be
     /// called multiple times, if timed_out() has happened and drm_sched_job_recovery() decides
     /// to try it again.
@@ -89,13 +82,6 @@ unsafe extern "C" fn run_job_cb<T: JobImpl>(
         Ok(None) => core::ptr::null_mut(),
         Ok(Some(fence)) => fence.into_raw(),
     }
-}
-
-unsafe extern "C" fn can_run_job_cb<T: JobImpl>(sched_job: *mut bindings::drm_sched_job) -> bool {
-    // SAFETY: All of our jobs are Job<T>.
-    let p = crate::container_of!(sched_job, Job<T>, job) as *mut Job<T>;
-
-    T::can_run(unsafe { &mut *p })
 }
 
 unsafe extern "C" fn timedout_job_cb<T: JobImpl>(
@@ -321,7 +307,6 @@ pub struct Scheduler<T: JobImpl>(Arc<SchedulerInner<T>>);
 impl<T: JobImpl> Scheduler<T> {
     const OPS: bindings::drm_sched_backend_ops = bindings::drm_sched_backend_ops {
         prepare_job: Some(prepare_job_cb::<T>),
-        can_run_job: Some(can_run_job_cb::<T>),
         run_job: Some(run_job_cb::<T>),
         timedout_job: Some(timedout_job_cb::<T>),
         free_job: Some(free_job_cb::<T>),
