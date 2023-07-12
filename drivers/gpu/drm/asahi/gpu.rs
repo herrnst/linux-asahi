@@ -95,7 +95,7 @@ const IOVA_KERN_RTKIT_TOP: u64 = 0xffffffae0fffffff;
 /// GPU/FW buffer manager control address (context 0 low)
 pub(crate) const IOVA_KERN_GPU_BUFMGR_LOW: u64 = 0x20_0000_0000;
 /// GPU/FW buffer manager control address (context 0 high)
-pub(crate) const IOVA_KERN_GPU_BUFMGR_HIGH: u64 = 0xffffffaf00000000;
+pub(crate) const IOVA_KERN_GPU_BUFMGR_HIGH: u64 = 0xffffffaeffff0000;
 
 /// Timeout for entering the halt state after a fault or request.
 const HALT_ENTER_TIMEOUT_MS: u64 = 100;
