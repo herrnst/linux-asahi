@@ -867,19 +867,6 @@ drm_sched_select_entity(struct drm_gpu_scheduler *sched)
 			break;
 	}
 
-	if (!entity)
-		return NULL;
-
-	if (sched->ops->can_run_job) {
-		struct drm_sched_job *sched_job = to_drm_sched_job(
-			spsc_queue_peek(&entity->job_queue));
-
-		if (!sched_job)
-			return entity;
-		if (!sched->ops->can_run_job(sched_job))
-			return NULL;
-	}
-
 	return entity;
 }
 
