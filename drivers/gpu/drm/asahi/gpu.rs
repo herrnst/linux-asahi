@@ -336,7 +336,7 @@ impl rtkit::Operations for GpuManager::ver {
             data.uat.kernel_vm(),
             IOVA_KERN_RTKIT_BASE,
             IOVA_KERN_RTKIT_TOP,
-            mmu::UAT_PGSZ,
+            mmu::UAT_PGSZ as u64,
             mmu::PROT_FW_SHARED_RW,
             true,
         )?;
