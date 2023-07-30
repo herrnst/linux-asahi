@@ -221,7 +221,7 @@ pub struct IdTable<'a, T: RawDeviceId, U> {
     _p: PhantomData<&'a U>,
 }
 
-impl<T: RawDeviceId, U> const AsRef<T::RawType> for IdTable<'_, T, U> {
+impl<T: RawDeviceId, U> AsRef<T::RawType> for IdTable<'_, T, U> {
     fn as_ref(&self) -> &T::RawType {
         self.first
     }
