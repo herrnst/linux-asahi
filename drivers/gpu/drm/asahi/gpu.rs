@@ -1292,6 +1292,7 @@ impl GpuManager for GpuManager::ver {
             buffer_slot,
             vm_slot,
             counter,
+            subpipe: 0, // TODO
             __pad: Default::default(),
         };
 
