@@ -37,7 +37,12 @@ const fn iomaps(chip_id: u32, mcc_count: usize) -> [Option<IOMapping>; 24] {
         Some(IOMapping::new(0x28e3d0000, 0x4000, 0x4000, true)), // ?
         Some(IOMapping::new(0x28e3c0000, 0x4000, 0x4000, false)), // ?
         Some(IOMapping::new(0x28e3d8000, 0x4000, 0x4000, true)), // ?
-        Some(IOMapping::new(0x404eac000, 0x4000, 0x4000, true)), // ?
+        Some(IOMapping::new(
+            0x404eac000,
+            if mcc_count > 8 { 0x8000 } else { 0x4000 },
+            0x4000,
+            true,
+        )), // ?
         None,
         None,
     ]
