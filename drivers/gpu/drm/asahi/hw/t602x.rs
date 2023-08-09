@@ -15,15 +15,10 @@ const fn iomaps(chip_id: u32, mcc_count: usize) -> [Option<IOMapping>; 24] {
         None,                                                        // UVD
         None,                                                        // unused
         None,                                                        // DisplayUnderrunWA
-        Some(IOMapping::new(
-            match chip_id {
-                0x6020 => 0x28e460000,
-                _ => 0x28e478000,
-            },
-            0x4000,
-            0x4000,
-            false,
-        )), // AnalogTempSensorControllerRegs
+        Some(match chip_id {
+            0x6020 => IOMapping::new(0x28e460000, 0x4000, 0x4000, false),
+            _ => IOMapping::new(0x28e478000, 0x8000, 0x4000, false),
+        }), // AnalogTempSensorControllerRegs
         None,                                                        // PMPDoorbell
         Some(IOMapping::new(0x404e08000, 0x8000, 0x8000, true)),     // MetrologySensorRegs
         None,                                                        // GMGIFAFRegs
