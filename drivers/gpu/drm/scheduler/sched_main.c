@@ -1158,7 +1158,7 @@ void drm_sched_fini(struct drm_gpu_scheduler *sched)
 		spin_unlock(&sched->job_list_lock);
 
 		dma_fence_set_error(&s_job->s_fence->finished, -ESRCH);
-		drm_sched_fence_finished(s_job->s_fence);
+		drm_sched_fence_finished(s_job->s_fence, -ESRCH);
 
 		WARN_ON(s_job->s_fence->parent);
 		sched->ops->free_job(s_job);
