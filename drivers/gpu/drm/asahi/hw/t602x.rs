@@ -137,8 +137,9 @@ pub(crate) const HWCONFIG_T6022: super::HwConfig = HwConfig {
         0, 2, 2, 1, 1, 90, 75, 1, 1, 1, 2, 90, 75, 1, 1, 1, 2, 90, 75, 1, 1, 1, 1, 90, 75, 1, 1,
     ]),
     has_csafr: true,
-    fast_sensor_mask: [0x40005000c000d00, 0x40005000c000d00],
-    fast_sensor_mask_alt: [0x140015001d001d00, 0x140015001d001d00],
+    fast_sensor_mask: [0x40005000c000d00, 0xd000c0005000400],
+    // Apple typo? Should probably be 0x140015001c001d00
+    fast_sensor_mask_alt: [0x140015001d001d00, 0x1d001c0015001400],
     fast_die0_sensor_present: 0, // Unused
     io_mappings: &iomaps(0x6022, 16),
     sram_base: Some(0x404d60000),
