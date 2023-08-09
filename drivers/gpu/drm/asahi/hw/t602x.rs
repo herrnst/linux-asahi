@@ -53,7 +53,7 @@ pub(crate) const HWCONFIG_T6022: super::HwConfig = HwConfig {
     chip_id: 0x6022,
     gpu_gen: GpuGen::G14,
     gpu_variant: GpuVariant::D,
-    gpu_core: GpuCore::G14C,
+    gpu_core: GpuCore::G14D,
     gpu_feat_compat: 0,
     gpu_feat_incompat: feat::incompat::MANDATORY_ZS_COMPRESSION,
 
@@ -114,7 +114,7 @@ pub(crate) const HWCONFIG_T6022: super::HwConfig = HwConfig {
         125, 125, 125, 125, 125, 125, 125, 125, 7500, 125, 125, 125, 125, 125, 125, 125,
     ],
     unk_hws2_0: 700,
-    unk_hws2_4: Some(f32!([1.0, 0.8, 0.2, 0.9, 0.1, 0.25, 0.7, 0.9])),
+    unk_hws2_4: Some(f32!([1.0, 0.8, 0.2, 0.9, 0.1, 0.25, 0.5, 0.9])),
     unk_hws2_24: 6,
     global_unk_54: 4000,
     sram_k: f32!(1.02),
@@ -158,6 +158,7 @@ pub(crate) const HWCONFIG_T6021: super::HwConfig = HwConfig {
 
     num_dies: 1,
     max_num_clusters: 4,
+    unk_hws2_4: Some(f32!([1.0, 0.8, 0.2, 0.9, 0.1, 0.25, 0.7, 0.9])),
     fast_sensor_mask: [0x40005000c000d00, 0],
     fast_sensor_mask_alt: [0x140015001d001d00, 0],
     io_mappings: &iomaps(0x6021, 8),
