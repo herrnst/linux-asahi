@@ -226,6 +226,7 @@ impl<T: Driver> Registration<T> {
         gem_prime_mmap: T::Object::ALLOC_OPS.gem_prime_mmap,
         dumb_create: T::Object::ALLOC_OPS.dumb_create,
         dumb_map_offset: T::Object::ALLOC_OPS.dumb_map_offset,
+        show_fdinfo: None,
 
         major: T::INFO.major,
         minor: T::INFO.minor,
