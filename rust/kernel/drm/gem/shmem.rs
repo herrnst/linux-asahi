@@ -150,6 +150,7 @@ impl<T: DriverObject> Object<T> {
         mmap: Some(bindings::drm_gem_shmem_object_mmap),
         vm_ops: &SHMEM_VM_OPS,
         evict: None,
+        status: None,
     };
 
     // SAFETY: Must only be used with DRM functions that are thread-safe
