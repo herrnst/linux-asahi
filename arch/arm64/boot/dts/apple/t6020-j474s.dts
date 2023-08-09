@@ -100,3 +100,8 @@
 &sound {
 	model = "Mac mini J474";
 };
+
+&gpu {
+	/* Apple does not do this, but they probably should */
+	apple,perf-base-pstate = <3>;
+};
