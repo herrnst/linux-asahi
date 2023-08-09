@@ -469,7 +469,7 @@ static int apple_drm_init(struct device *dev)
 
 	fb_size = fb_r.end - fb_r.start + 1;
 	ret = drm_aperture_remove_conflicting_framebuffers(fb_r.start, fb_size,
-						false, &apple_drm_driver);
+						&apple_drm_driver);
 	if (ret) {
 		dev_err(dev, "Failed remove fb: %d\n", ret);
 		goto err_unbind;
