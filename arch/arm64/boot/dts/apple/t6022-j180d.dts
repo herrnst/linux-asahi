@@ -567,9 +567,7 @@
 /delete-node/ &ps_disp0_fe_die1;
 
 &gpu {
-	/* gpu-idleoff-min_conf = 1056964608 */
-	/* gpu-idleoff-standby-timer = 3000 */
-
+	apple,idleoff-standby-timer = <3000>;
 	apple,perf-base-pstate = <5>;
 	apple,perf-boost-ce-step = <100>;
 	apple,perf-boost-min-util = <75>;
