@@ -239,6 +239,7 @@ impl<T: DriverObject> Object<T> {
         mmap: None,
         vm_ops: core::ptr::null_mut(),
         evict: None,
+        status: None,
     };
 
     /// Create a new GEM object.
