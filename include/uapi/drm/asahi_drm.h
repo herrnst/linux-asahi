@@ -334,6 +334,8 @@ struct drm_asahi_attachment {
 #define ASAHI_RENDER_PROCESS_EMPTY_TILES (1UL << 3)
 #define ASAHI_RENDER_NO_VERTEX_CLUSTERING (1UL << 4)
 #define ASAHI_RENDER_MSAA_ZS (1UL << 5)
+/* XXX check */
+#define ASAHI_RENDER_NO_PREEMPTION (1UL << 6)
 
 struct drm_asahi_cmd_render {
 	/** @extensions: Pointer to the first extension struct, if any */
@@ -347,6 +349,11 @@ struct drm_asahi_cmd_render {
 	__u64 fragment_attachments;
 	__u32 vertex_attachment_count;
 	__u32 fragment_attachment_count;
+
+	__u32 vertex_helper_program;
+	__u32 fragment_helper_program;
+	__u64 vertex_helper_arg;
+	__u64 fragment_helper_arg;
 
 	__u64 depth_buffer_load;
 	__u64 depth_buffer_store;
@@ -479,6 +486,9 @@ struct drm_asahi_cmd_render_unknowns {
 	__u64 vtx_unk_mask;
 };
 
+/* XXX check */
+#define ASAHI_COMPUTE_NO_PREEMPTION (1UL << 0)
+
 struct drm_asahi_cmd_compute {
 	__u64 flags;
 
@@ -489,10 +499,9 @@ struct drm_asahi_cmd_compute {
 	__u32 attachment_count;
 	__u32 pad;
 
-	__u64 helper_arg;
-
-	__u32 buffer_descriptor_size; /* ? */
 	__u32 helper_program;
+	__u32 helper_unk; /* ? */
+	__u64 helper_arg;
 
 	__u32 encoder_id;
 	__u32 cmd_id;
