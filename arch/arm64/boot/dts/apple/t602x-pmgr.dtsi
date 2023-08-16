@@ -2238,6 +2238,7 @@
 		#power-domain-cells = <0>;
 		#reset-cells = <0>;
 		label = DIE_LABEL(gpx);
+		apple,min-state = <4>;
 		apple,always-on;
 	};
 
@@ -2248,6 +2249,7 @@
 		#reset-cells = <0>;
 		label = DIE_LABEL(afr);
 		/* Apple Fabric, media stuff: this can power down */
+		apple,min-state = <4>;
 	};
 
 	DIE_NODE(ps_gfx): power-controller@108 {
