@@ -356,18 +356,30 @@ struct drm_asahi_cmd_render {
 	__u64 fragment_helper_arg;
 
 	__u64 depth_buffer_load;
+	__u64 depth_buffer_load_stride;
 	__u64 depth_buffer_store;
+	__u64 depth_buffer_store_stride;
 	__u64 depth_buffer_partial;
+	__u64 depth_buffer_partial_stride;
 	__u64 depth_meta_buffer_load;
+	__u64 depth_meta_buffer_load_stride;
 	__u64 depth_meta_buffer_store;
+	__u64 depth_meta_buffer_store_stride;
 	__u64 depth_meta_buffer_partial;
+	__u64 depth_meta_buffer_partial_stride;
 
 	__u64 stencil_buffer_load;
+	__u64 stencil_buffer_load_stride;
 	__u64 stencil_buffer_store;
+	__u64 stencil_buffer_store_stride;
 	__u64 stencil_buffer_partial;
+	__u64 stencil_buffer_partial_stride;
 	__u64 stencil_meta_buffer_load;
+	__u64 stencil_meta_buffer_load_stride;
 	__u64 stencil_meta_buffer_store;
+	__u64 stencil_meta_buffer_store_stride;
 	__u64 stencil_meta_buffer_partial;
+	__u64 stencil_meta_buffer_partial_stride;
 
 	__u64 scissor_array;
 	__u64 depth_bias_array;
