@@ -16,7 +16,7 @@
 extern "C" {
 #endif
 
-#define DRM_ASAHI_UNSTABLE_UABI_VERSION		10008
+#define DRM_ASAHI_UNSTABLE_UABI_VERSION		10009
 
 #define DRM_ASAHI_GET_PARAMS			0x00
 #define DRM_ASAHI_VM_CREATE			0x01
@@ -366,6 +366,14 @@ struct drm_asahi_cmd_render {
 	__u64 depth_bias_array;
 	__u64 visibility_result_buffer;
 
+	__u64 vertex_sampler_array;
+	__u32 vertex_sampler_count;
+	__u32 vertex_sampler_max;
+
+	__u64 fragment_sampler_array;
+	__u32 fragment_sampler_count;
+	__u32 fragment_sampler_max;
+
 	__u64 zls_ctrl;
 	__u64 ppp_multisamplectl;
 	__u32 ppp_ctrl;
@@ -488,6 +496,10 @@ struct drm_asahi_cmd_compute {
 
 	__u32 encoder_id;
 	__u32 cmd_id;
+
+	__u64 sampler_array;
+	__u32 sampler_count;
+	__u32 sampler_max;
 
 	__u32 iogpu_unk_40;
 	__u32 unk_mask;
