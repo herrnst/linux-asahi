@@ -70,6 +70,8 @@ struct drm_asahi_params_global {
 
 	__u32 result_render_size;
 	__u32 result_compute_size;
+
+	__u32 firmware_version[4];
 };
 
 /*
