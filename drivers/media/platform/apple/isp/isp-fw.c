@@ -26,6 +26,16 @@ static inline void isp_asc_write32(struct apple_isp *isp, u32 reg, u32 val)
 	writel(val, isp->asc + reg);
 }
 
+static inline u32 isp_gpio_read32(struct apple_isp *isp, u32 reg)
+{
+	return readl(isp->gpio + reg);
+}
+
+static inline void isp_gpio_write32(struct apple_isp *isp, u32 reg, u32 val)
+{
+	writel(val, isp->gpio + reg);
+}
+
 struct isp_firmware_bootargs {
 	u32 pad_0[2];
 	u64 ipc_iova;
@@ -76,8 +86,8 @@ static irqreturn_t apple_isp_isr(int irq, void *dev)
 {
 	struct apple_isp *isp = dev;
 
-	isp_core_write32(isp, ISP_CORE_IRQ_ACK,
-			 isp_core_read32(isp, ISP_CORE_IRQ_INTERRUPT));
+	isp_mbox_write32(isp, ISP_MBOX_IRQ_ACK,
+			 isp_mbox_read32(isp, ISP_MBOX_IRQ_INTERRUPT));
 
 	wake_up_interruptible_all(&isp->wait);
 
@@ -94,9 +104,9 @@ static irqreturn_t apple_isp_isr(int irq, void *dev)
 
 static void isp_disable_irq(struct apple_isp *isp)
 {
-	isp_core_write32(isp, ISP_CORE_IRQ_ENABLE, 0x0);
+	isp_mbox_write32(isp, ISP_MBOX_IRQ_ENABLE, 0x0);
 	free_irq(isp->irq, isp);
-	isp_core_write32(isp, ISP_CORE_GPIO_1, 0xfeedbabe); /* real funny */
+	isp_gpio_write32(isp, ISP_GPIO_1, 0xfeedbabe); /* real funny */
 }
 
 static int isp_enable_irq(struct apple_isp *isp)
@@ -111,7 +121,7 @@ static int isp_enable_irq(struct apple_isp *isp)
 
 	isp_dbg(isp, "about to enable interrupts...\n");
 
-	isp_core_write32(isp, ISP_CORE_IRQ_ENABLE, 0xf);
+	isp_mbox_write32(isp, ISP_MBOX_IRQ_ENABLE, 0xf);
 
 	return 0;
 }
@@ -165,26 +175,26 @@ static int isp_firmware_boot_stage1(struct apple_isp *isp)
 	if (err < 0)
 		return err;
 
-	isp_core_write32(isp, ISP_CORE_CLOCK_EN, 0x1);
+	isp_gpio_write32(isp, ISP_GPIO_CLOCK_EN, 0x1);
 
-	isp_core_write32(isp, ISP_CORE_GPIO_0, 0x0);
-	isp_core_write32(isp, ISP_CORE_GPIO_1, 0x0);
-	isp_core_write32(isp, ISP_CORE_GPIO_2, 0x0);
-	isp_core_write32(isp, ISP_CORE_GPIO_3, 0x0);
-	isp_core_write32(isp, ISP_CORE_GPIO_4, 0x0);
-	isp_core_write32(isp, ISP_CORE_GPIO_5, 0x0);
-	isp_core_write32(isp, ISP_CORE_GPIO_6, 0x0);
-	isp_core_write32(isp, ISP_CORE_GPIO_7, 0x0);
+	isp_gpio_write32(isp, ISP_GPIO_0, 0x0);
+	isp_gpio_write32(isp, ISP_GPIO_1, 0x0);
+	isp_gpio_write32(isp, ISP_GPIO_2, 0x0);
+	isp_gpio_write32(isp, ISP_GPIO_3, 0x0);
+	isp_gpio_write32(isp, ISP_GPIO_4, 0x0);
+	isp_gpio_write32(isp, ISP_GPIO_5, 0x0);
+	isp_gpio_write32(isp, ISP_GPIO_6, 0x0);
+	isp_gpio_write32(isp, ISP_GPIO_7, 0x0);
 
-	isp_core_write32(isp, ISP_CORE_IRQ_ENABLE, 0x0);
+	isp_mbox_write32(isp, ISP_MBOX_IRQ_ENABLE, 0x0);
 
 	isp_asc_write32(isp, ISP_ASC_CONTROL, 0x0);
 	isp_asc_write32(isp, ISP_ASC_CONTROL, 0x10);
 
-	/* Wait for ISP_CORE_GPIO_7 to 0x0 -> 0x8042006 */
-	isp_core_write32(isp, ISP_CORE_GPIO_7, 0x0);
+	/* Wait for ISP_GPIO_7 to 0x0 -> 0x8042006 */
+	isp_gpio_write32(isp, ISP_GPIO_7, 0x0);
 	for (retries = 0; retries < ISP_FIRMWARE_MAX_TRIES; retries++) {
-		u32 val = isp_core_read32(isp, ISP_CORE_GPIO_7);
+		u32 val = isp_gpio_read32(isp, ISP_GPIO_7);
 		if (val == 0x8042006) {
 			isp_dbg(isp,
 				"got first magic number (0x%x) from firmware\n",
@@ -215,9 +225,9 @@ static int isp_firmware_boot_stage2(struct apple_isp *isp)
 	dma_addr_t args_iova;
 	int err, retries;
 
-	u32 num_ipc_chans = isp_core_read32(isp, ISP_CORE_GPIO_0);
-	u32 args_offset = isp_core_read32(isp, ISP_CORE_GPIO_1);
-	u32 extra_size = isp_core_read32(isp, ISP_CORE_GPIO_3);
+	u32 num_ipc_chans = isp_gpio_read32(isp, ISP_GPIO_0);
+	u32 args_offset = isp_gpio_read32(isp, ISP_GPIO_1);
+	u32 extra_size = isp_gpio_read32(isp, ISP_GPIO_3);
 	isp->num_ipc_chans = num_ipc_chans;
 
 	if (!isp->num_ipc_chans) {
@@ -264,14 +274,14 @@ static int isp_firmware_boot_stage2(struct apple_isp *isp)
 	args.unk9 = 0x3;
 	isp_iowrite(isp, args_iova, &args, sizeof(args));
 
-	isp_core_write32(isp, ISP_CORE_GPIO_0, args_iova);
-	isp_core_write32(isp, ISP_CORE_GPIO_1, 0x0);
+	isp_gpio_write32(isp, ISP_GPIO_0, args_iova);
+	isp_gpio_write32(isp, ISP_GPIO_1, 0x0);
 
-	/* Wait for ISP_CORE_GPIO_7 to 0xf7fbdff9 -> 0x8042006 */
-	isp_core_write32(isp, ISP_CORE_GPIO_7, 0xf7fbdff9);
+	/* Wait for ISP_GPIO_7 to 0xf7fbdff9 -> 0x8042006 */
+	isp_gpio_write32(isp, ISP_GPIO_7, 0xf7fbdff9);
 
 	for (retries = 0; retries < ISP_FIRMWARE_MAX_TRIES; retries++) {
-		u32 val = isp_core_read32(isp, ISP_CORE_GPIO_7);
+		u32 val = isp_gpio_read32(isp, ISP_GPIO_7);
 		if (val == 0x8042006) {
 			isp_dbg(isp,
 				"got second magic number (0x%x) from firmware\n",
@@ -324,7 +334,7 @@ static void isp_free_channel_info(struct apple_isp *isp)
 
 static int isp_fill_channel_info(struct apple_isp *isp)
 {
-	u32 table_iova = isp_core_read32(isp, ISP_CORE_GPIO_0);
+	u32 table_iova = isp_gpio_read32(isp, ISP_GPIO_0);
 
 	isp->ipc_chans = kcalloc(isp->num_ipc_chans,
 				 sizeof(struct isp_channel *), GFP_KERNEL);
@@ -416,11 +426,11 @@ static int isp_firmware_boot_stage3(struct apple_isp *isp)
 		}
 	}
 
-	/* Wait for ISP_CORE_GPIO_3 to 0x8042006 -> 0x0 */
-	isp_core_write32(isp, ISP_CORE_GPIO_3, 0x8042006);
+	/* Wait for ISP_GPIO_3 to 0x8042006 -> 0x0 */
+	isp_gpio_write32(isp, ISP_GPIO_3, 0x8042006);
 
 	for (retries = 0; retries < ISP_FIRMWARE_MAX_TRIES; retries++) {
-		u32 val = isp_core_read32(isp, ISP_CORE_GPIO_3);
+		u32 val = isp_gpio_read32(isp, ISP_GPIO_3);
 		if (val == 0x0) {
 			isp_dbg(isp,
 				"got third magic number (0x%x) from firmware\n",
@@ -445,14 +455,14 @@ static int isp_stop_command_processor(struct apple_isp *isp)
 {
 	int retries;
 
-	/* Wait for ISP_CORE_GPIO_0 to 0xf7fbdff9 -> 0x8042006 */
-	isp_core_write32(isp, ISP_CORE_GPIO_0, 0xf7fbdff9);
+	/* Wait for ISP_GPIO_0 to 0xf7fbdff9 -> 0x8042006 */
+	isp_gpio_write32(isp, ISP_GPIO_0, 0xf7fbdff9);
 
 	/* Their CISP_CMD_STOP implementation is buggy */
 	isp_cmd_suspend(isp);
 
 	for (retries = 0; retries < ISP_FIRMWARE_MAX_TRIES; retries++) {
-		u32 val = isp_core_read32(isp, ISP_CORE_GPIO_0);
+		u32 val = isp_gpio_read32(isp, ISP_GPIO_0);
 		if (val == 0x8042006) {
 			isp_dbg(isp, "got magic number (0x%x) from firmware\n",
 				val);
