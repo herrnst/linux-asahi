@@ -224,7 +224,7 @@ void dcp_sleep(struct apple_dcp *dcp)
 	case DCP_FIRMWARE_V_12_3:
 		iomfb_sleep_v12_3(dcp);
 		break;
-	case DCP_FIRMWARE_V_13_3:
+	case DCP_FIRMWARE_V_13_5:
 		iomfb_sleep_v13_3(dcp);
 		break;
 	default:
@@ -241,7 +241,7 @@ void dcp_poweron(struct platform_device *pdev)
 	case DCP_FIRMWARE_V_12_3:
 		iomfb_poweron_v12_3(dcp);
 		break;
-	case DCP_FIRMWARE_V_13_3:
+	case DCP_FIRMWARE_V_13_5:
 		iomfb_poweron_v13_3(dcp);
 		break;
 	default:
@@ -259,7 +259,7 @@ void dcp_poweroff(struct platform_device *pdev)
 	case DCP_FIRMWARE_V_12_3:
 		iomfb_poweroff_v12_3(dcp);
 		break;
-	case DCP_FIRMWARE_V_13_3:
+	case DCP_FIRMWARE_V_13_5:
 		iomfb_poweroff_v13_3(dcp);
 		break;
 	default:
@@ -504,7 +504,7 @@ void dcp_flush(struct drm_crtc *crtc, struct drm_atomic_state *state)
 	case DCP_FIRMWARE_V_12_3:
 		iomfb_flush_v12_3(dcp, crtc, state);
 		break;
-	case DCP_FIRMWARE_V_13_3:
+	case DCP_FIRMWARE_V_13_5:
 		iomfb_flush_v13_3(dcp, crtc, state);
 		break;
 	default:
@@ -520,7 +520,7 @@ void iomfb_start(struct apple_dcp *dcp)
 	case DCP_FIRMWARE_V_12_3:
 		iomfb_start_v12_3(dcp);
 		break;
-	case DCP_FIRMWARE_V_13_3:
+	case DCP_FIRMWARE_V_13_5:
 		iomfb_start_v13_3(dcp);
 		break;
 	default:
@@ -573,7 +573,7 @@ void iomfb_shutdown(struct apple_dcp *dcp)
 	case DCP_FIRMWARE_V_12_3:
 		iomfb_shutdown_v12_3(dcp);
 		break;
-	case DCP_FIRMWARE_V_13_3:
+	case DCP_FIRMWARE_V_13_5:
 		iomfb_shutdown_v13_3(dcp);
 		break;
 	default:
