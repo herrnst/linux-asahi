@@ -294,6 +294,9 @@ struct apple_dart_domain {
  * @streams: streams for this device
  */
 struct apple_dart_master_cfg {
+	/* Union of DART capabilitles */
+	u32 supports_bypass : 1;
+
 	struct apple_dart_stream_map stream_maps[MAX_DARTS_PER_DEVICE];
 };
 
@@ -860,7 +863,7 @@ static int apple_dart_attach_dev(struct iommu_domain *domain,
 
 	if (dart0->force_bypass && domain->type != IOMMU_DOMAIN_IDENTITY)
 		return -EINVAL;
-	if (!dart0->supports_bypass && domain->type == IOMMU_DOMAIN_IDENTITY)
+	if (!cfg->supports_bypass && domain->type == IOMMU_DOMAIN_IDENTITY)
 		return -EINVAL;
 	if (dart0->locked && domain->type != IOMMU_DOMAIN_DMA &&
 	    domain->type != IOMMU_DOMAIN_UNMANAGED)
@@ -973,21 +976,26 @@ static int apple_dart_of_xlate(struct device *dev, struct of_phandle_args *args)
 		return -EINVAL;
 	sid = args->args[0];
 
-	if (!cfg)
+	if (!cfg) {
 		cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+
+		/* Will be ANDed with DART capabilities */
+		cfg->supports_bypass = true;
+	}
 	if (!cfg)
 		return -ENOMEM;
 	dev_iommu_priv_set(dev, cfg);
 
 	cfg_dart = cfg->stream_maps[0].dart;
 	if (cfg_dart) {
-		if (cfg_dart->supports_bypass != dart->supports_bypass)
-			return -EINVAL;
 		if (cfg_dart->force_bypass != dart->force_bypass)
 			return -EINVAL;
 		if (cfg_dart->pgsize != dart->pgsize)
 			return -EINVAL;
 	}
+
+	if (!dart->supports_bypass)
+		cfg->supports_bypass = false;
 
 	for (i = 0; i < MAX_DARTS_PER_DEVICE; ++i) {
 		if (cfg->stream_maps[i].dart == dart) {
