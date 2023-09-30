@@ -385,6 +385,8 @@ static const struct apple_isp_hw apple_isp_hw_t8103 = {
 	.bandwidth_size = 0x4,
 
 	.scl1 = false,
+	.lpdp = false,
+	.temporal_filter = 0,
 	.meta_size = ISP_META_SIZE_T8103,
 };
 
@@ -412,6 +414,8 @@ static const struct apple_isp_hw apple_isp_hw_t6000 = {
 	.bandwidth_size = 0x8,
 
 	.scl1 = false,
+	.lpdp = false,
+	.temporal_filter = 0,
 	.meta_size = ISP_META_SIZE_T8103,
 };
 
@@ -419,7 +423,6 @@ static const struct apple_isp_hw apple_isp_hw_t8112 = {
 	.gen = ISP_GEN_T8112,
 	.pmu_base = 0x23b704000,
 
-	// TODO: verify
 	.dsid_count = 1,
 	.dsid_clr_base0 = 0x200f14000,
 	.dsid_clr_range0 = 0x1000,
@@ -433,7 +436,9 @@ static const struct apple_isp_hw apple_isp_hw_t8112 = {
 	.bandwidth_bit = 0x0,
 	.bandwidth_size = 0x8,
 
-	.scl1 = true,
+	.scl1 = false,
+	.lpdp = false,
+	.temporal_filter = 1,
 	.meta_size = ISP_META_SIZE_T8112,
 };
 
@@ -455,6 +460,8 @@ static const struct apple_isp_hw apple_isp_hw_t6020 = {
 	.bandwidth_size = 0x8,
 
 	.scl1 = true,
+	.lpdp = true,
+	.temporal_filter = 0,
 	.meta_size = ISP_META_SIZE_T8112,
 };
 
