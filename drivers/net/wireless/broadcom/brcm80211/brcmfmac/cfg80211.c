@@ -101,6 +101,9 @@
 #define BRCMF_ASSOC_PARAMS_FIXED_SIZE \
 	(sizeof(struct brcmf_assoc_params_le) - sizeof(u16))
 
+#define BRCMF_ASSOC_PARAMS_FIXED_SIZE_V1 \
+	(sizeof(struct brcmf_assoc_params_v1_le) - sizeof(u16))
+
 #define BRCMF_MAX_CHANSPEC_LIST \
 	(BRCMF_DCMD_MEDLEN / sizeof(__le32) - 1)
 
@@ -1781,7 +1784,7 @@ brcmf_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *ndev,
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_cfg80211_profile *profile = &ifp->vif->profile;
 	struct brcmf_pub *drvr = cfg->pub;
-	struct brcmf_join_params join_params;
+	struct brcmf_join_params_v1 join_params;
 	size_t join_params_size = 0;
 	s32 err = 0;
 	s32 wsec = 0;
@@ -1868,15 +1871,14 @@ brcmf_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *ndev,
 	ssid_len = min_t(u32, params->ssid_len, IEEE80211_MAX_SSID_LEN);
 	memcpy(join_params.ssid_le.SSID, params->ssid, ssid_len);
 	join_params.ssid_le.SSID_len = cpu_to_le32(ssid_len);
-	join_params_size = sizeof(join_params.ssid_le);
+	join_params_size = sizeof(join_params.ssid_le) + BRCMF_ASSOC_PARAMS_FIXED_SIZE_V1;
 
 	/* BSSID */
 	if (params->bssid) {
-		memcpy(join_params.params_le.bssid, params->bssid, ETH_ALEN);
-		join_params_size += BRCMF_ASSOC_PARAMS_FIXED_SIZE;
+		memcpy(join_params.params_le.v0.bssid, params->bssid, ETH_ALEN);
 		memcpy(profile->bssid, params->bssid, ETH_ALEN);
 	} else {
-		eth_broadcast_addr(join_params.params_le.bssid);
+		eth_broadcast_addr(join_params.params_le.v0.bssid);
 		eth_zero_addr(profile->bssid);
 	}
 
@@ -1891,10 +1893,10 @@ brcmf_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *ndev,
 			/* adding chanspec */
 			chanspec = chandef_to_chanspec(&cfg->d11inf,
 						       &params->chandef);
-			join_params.params_le.chanspec_list[0] =
+			join_params.params_le.v0.chanspec_list[0] =
 				cpu_to_le16(chanspec);
-			join_params.params_le.chanspec_num = cpu_to_le32(1);
-			join_params_size += sizeof(join_params.params_le);
+			join_params.params_le.v0.chanspec_num = cpu_to_le32(1);
+			join_params_size += sizeof(u16);
 		}
 
 		/* set channel for starter */
@@ -1910,9 +1912,19 @@ brcmf_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *ndev,
 
 	cfg->ibss_starter = false;
 
-
-	err = brcmf_fil_cmd_data_set(ifp, BRCMF_C_SET_SSID,
-				     &join_params, join_params_size);
+	if (!brcmf_feat_is_enabled(ifp, BRCMF_FEAT_JOIN_V1)) {
+		struct brcmf_join_params join_params_v0 = {
+			.ssid_le = join_params.ssid_le,
+			.params_le = join_params.params_le.v0,
+		};
+		join_params_size += BRCMF_ASSOC_PARAMS_FIXED_SIZE;
+		join_params_size -= BRCMF_ASSOC_PARAMS_FIXED_SIZE_V1;
+		err = brcmf_fil_cmd_data_set(ifp, BRCMF_C_SET_SSID,
+					&join_params_v0, join_params_size);
+	} else {
+		err = brcmf_fil_cmd_data_set(ifp, BRCMF_C_SET_SSID,
+					&join_params, join_params_size);
+	}
 	if (err) {
 		bphy_err(drvr, "WLC_SET_SSID failed (%d)\n", err);
 		goto done;
@@ -2373,13 +2385,16 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 	struct brcmf_cfg80211_profile *profile = &ifp->vif->profile;
 	struct ieee80211_channel *chan = sme->channel;
 	struct brcmf_pub *drvr = ifp->drvr;
-	struct brcmf_join_params join_params;
+	struct brcmf_join_params_v1 join_params;
+	struct brcmf_ssid_le *ssid_le;
+	struct brcmf_join_scan_params_le *scan_le;
+	struct brcmf_assoc_params_le *assoc_v0;
 	size_t join_params_size;
 	const struct brcmf_tlv *rsn_ie;
 	const struct brcmf_vs_tlv *wpa_ie;
 	const void *ie;
 	u32 ie_len;
-	struct brcmf_ext_join_params_le *ext_join_params;
+	void *ext_join_params;
 	u16 chanspec;
 	s32 err = 0;
 	u32 ssid_len;
@@ -2515,55 +2530,74 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 	/* Join with specific BSSID and cached SSID
 	 * If SSID is zero join based on BSSID only
 	 */
-	join_params_size = offsetof(struct brcmf_ext_join_params_le, assoc_le) +
+	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_JOIN_V1)) {
+		struct brcmf_ext_join_params_v1_le *ext_v1;
+
+		join_params_size = offsetof(struct brcmf_ext_join_params_v1_le, assoc_le) +
+		offsetof(struct brcmf_assoc_params_v1_le, v0.chanspec_list);
+		ext_v1 = kzalloc(sizeof(*ext_v1), GFP_KERNEL);
+		ssid_le = &ext_v1->ssid_le;
+		scan_le = &ext_v1->scan_le;
+		assoc_v0 = &ext_v1->assoc_le.v0;
+		ext_join_params = ext_v1;
+	} else {
+		struct brcmf_ext_join_params_le *ext_v0;
+
+		join_params_size = offsetof(struct brcmf_ext_join_params_le, assoc_le) +
 		offsetof(struct brcmf_assoc_params_le, chanspec_list);
-	if (cfg->channel)
-		join_params_size += sizeof(u16);
-	ext_join_params = kzalloc(sizeof(*ext_join_params), GFP_KERNEL);
+		ext_v0 = kzalloc(sizeof(*ext_v0), GFP_KERNEL);
+		ssid_le = &ext_v0->ssid_le;
+		scan_le = &ext_v0->scan_le;
+		assoc_v0 = &ext_v0->assoc_le;
+		ext_join_params = ext_v0;
+	}
 	if (ext_join_params == NULL) {
 		err = -ENOMEM;
 		goto done;
 	}
+
+	if (cfg->channel)
+		join_params_size += sizeof(u16);
 	ssid_len = min_t(u32, sme->ssid_len, IEEE80211_MAX_SSID_LEN);
-	ext_join_params->ssid_le.SSID_len = cpu_to_le32(ssid_len);
-	memcpy(&ext_join_params->ssid_le.SSID, sme->ssid, ssid_len);
+	ssid_le->SSID_len = cpu_to_le32(ssid_len);
+	memcpy(&ssid_le->SSID, sme->ssid, ssid_len);
 	if (ssid_len < IEEE80211_MAX_SSID_LEN)
 		brcmf_dbg(CONN, "SSID \"%s\", len (%d)\n",
-			  ext_join_params->ssid_le.SSID, ssid_len);
+			  ssid_le->SSID, ssid_len);
 
 	/* Set up join scan parameters */
-	ext_join_params->scan_le.scan_type = -1;
-	ext_join_params->scan_le.home_time = cpu_to_le32(-1);
+	scan_le->scan_type = -1;
+	scan_le->home_time = cpu_to_le32(-1);
 
 	if (sme->bssid)
-		memcpy(&ext_join_params->assoc_le.bssid, sme->bssid, ETH_ALEN);
+		memcpy(&assoc_v0->bssid, sme->bssid, ETH_ALEN);
 	else
-		eth_broadcast_addr(ext_join_params->assoc_le.bssid);
+		eth_broadcast_addr(assoc_v0->bssid);
 
 	if (cfg->channel) {
-		ext_join_params->assoc_le.chanspec_num = cpu_to_le32(1);
+		assoc_v0->chanspec_num = cpu_to_le32(1);
 
-		ext_join_params->assoc_le.chanspec_list[0] =
+		assoc_v0->chanspec_list[0] =
 			cpu_to_le16(chanspec);
 		/* Increase dwell time to receive probe response or detect
 		 * beacon from target AP at a noisy air only during connect
 		 * command.
 		 */
-		ext_join_params->scan_le.active_time =
+		scan_le->active_time =
 			cpu_to_le32(BRCMF_SCAN_JOIN_ACTIVE_DWELL_TIME_MS);
-		ext_join_params->scan_le.passive_time =
+		scan_le->passive_time =
 			cpu_to_le32(BRCMF_SCAN_JOIN_PASSIVE_DWELL_TIME_MS);
 		/* To sync with presence period of VSDB GO send probe request
 		 * more frequently. Probe request will be stopped when it gets
 		 * probe response from target AP/GO.
 		 */
-		ext_join_params->scan_le.nprobes =
+		scan_le->nprobes =
 			cpu_to_le32(BRCMF_SCAN_JOIN_ACTIVE_DWELL_TIME_MS /
 				    BRCMF_SCAN_JOIN_PROBE_INTERVAL_MS);
 	} else {
-		ext_join_params->scan_le.active_time = cpu_to_le32(-1);
-		ext_join_params->scan_le.passive_time = cpu_to_le32(-1);
-		ext_join_params->scan_le.nprobes = cpu_to_le32(-1);
+		scan_le->active_time = cpu_to_le32(-1);
+		scan_le->passive_time = cpu_to_le32(-1);
+		scan_le->nprobes = cpu_to_le32(-1);
 	}
 
 	brcmf_set_join_pref(ifp, &sme->bss_select);
@@ -2577,23 +2611,34 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 
 	/* join command failed, fallback to set ssid */
 	memset(&join_params, 0, sizeof(join_params));
-	join_params_size = sizeof(join_params.ssid_le);
+	join_params_size = sizeof(join_params.ssid_le) + BRCMF_ASSOC_PARAMS_FIXED_SIZE_V1;
 
 	memcpy(&join_params.ssid_le.SSID, sme->ssid, ssid_len);
 	join_params.ssid_le.SSID_len = cpu_to_le32(ssid_len);
 
 	if (sme->bssid)
-		memcpy(join_params.params_le.bssid, sme->bssid, ETH_ALEN);
+		memcpy(join_params.params_le.v0.bssid, sme->bssid, ETH_ALEN);
 	else
-		eth_broadcast_addr(join_params.params_le.bssid);
+		eth_broadcast_addr(join_params.params_le.v0.bssid);
 
 	if (cfg->channel) {
-		join_params.params_le.chanspec_list[0] = cpu_to_le16(chanspec);
-		join_params.params_le.chanspec_num = cpu_to_le32(1);
-		join_params_size += sizeof(join_params.params_le);
+		join_params.params_le.v0.chanspec_list[0] = cpu_to_le16(chanspec);
+		join_params.params_le.v0.chanspec_num = cpu_to_le32(1);
+		join_params_size += sizeof(u16);
 	}
-	err = brcmf_fil_cmd_data_set(ifp, BRCMF_C_SET_SSID,
-				     &join_params, join_params_size);
+	if (!brcmf_feat_is_enabled(ifp, BRCMF_FEAT_JOIN_V1)) {
+		struct brcmf_join_params join_params_v0 = {
+			.ssid_le = join_params.ssid_le,
+			.params_le = join_params.params_le.v0,
+		};
+		join_params_size += BRCMF_ASSOC_PARAMS_FIXED_SIZE;
+		join_params_size -= BRCMF_ASSOC_PARAMS_FIXED_SIZE_V1;
+		err = brcmf_fil_cmd_data_set(ifp, BRCMF_C_SET_SSID,
+					&join_params_v0, join_params_size);
+	} else {
+		err = brcmf_fil_cmd_data_set(ifp, BRCMF_C_SET_SSID,
+					&join_params, join_params_size);
+	}
 	if (err)
 		bphy_err(drvr, "BRCMF_C_SET_SSID failed (%d)\n", err);
 
