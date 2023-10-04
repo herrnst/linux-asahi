@@ -513,11 +513,25 @@ struct brcmf_escan_result_le {
 struct brcmf_assoc_params_le {
 	/* 00:00:00:00:00:00: broadcast scan */
 	u8 bssid[ETH_ALEN];
+	/* 0: use chanspec_num, and the single bssid,
+	 * otherwise count of chanspecs in chanspec_list
+	 * AND paired bssids following chanspec_list
+	 * also, chanspec_num has to be set to zero
+	 * for bssid list to be used
+	 */
+	__le16 bssid_cnt;
 	/* 0: all available channels, otherwise count of chanspecs in
 	 * chanspec_list */
 	__le32 chanspec_num;
 	/* list of chanspecs */
 	__le16 chanspec_list[1];
+};
+
+struct brcmf_assoc_params_v1_le {
+	__le16 version;
+	__le16 flags;
+	/* Embed the old structure to ease supporting both */
+	struct brcmf_assoc_params_le v0;
 };
 
 /**
@@ -542,6 +556,11 @@ struct brcmf_join_params {
 	struct brcmf_assoc_params_le params_le;
 };
 
+struct brcmf_join_params_v1 {
+	struct brcmf_ssid_le ssid_le;
+	struct brcmf_assoc_params_v1_le params_le;
+};
+
 /* scan params for extended join */
 struct brcmf_join_scan_params_le {
 	u8 scan_type;		/* 0 use default, active or passive scan */
@@ -562,6 +581,13 @@ struct brcmf_ext_join_params_le {
 	struct brcmf_ssid_le ssid_le;	/* {0, ""}: wildcard scan */
 	struct brcmf_join_scan_params_le scan_le;
 	struct brcmf_assoc_params_le assoc_le;
+};
+
+/* extended join params */
+struct brcmf_ext_join_params_v1_le {
+	struct brcmf_ssid_le ssid_le;	/* {0, ""}: wildcard scan */
+	struct brcmf_join_scan_params_le scan_le;
+	struct brcmf_assoc_params_v1_le assoc_le;
 };
 
 struct brcmf_wsec_key {
