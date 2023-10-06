@@ -121,7 +121,6 @@ struct apple_isp_hw {
 	u32 meta_size;
 	bool scl1;
 	bool lpdp;
-	u32 temporal_filter;
 };
 
 enum isp_sensor_id {
@@ -190,6 +189,7 @@ struct apple_isp {
 	const struct apple_isp_hw *hw;
 	enum isp_firmware_version fw_compat;
 	u32 platform_id;
+	u32 temporal_filter;
 	struct isp_preset *presets;
 	int num_presets;
 
