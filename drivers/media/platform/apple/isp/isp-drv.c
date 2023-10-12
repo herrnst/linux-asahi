@@ -284,7 +284,7 @@ static enum isp_firmware_version isp_check_firmware_version(struct device *dev)
 	version = isp_read_fw_version(dev, "apple,firmware-version");
 	compat = isp_read_fw_version(dev, "apple,firmware-compat");
 
-	dev_info(dev, "ISP firmware-compat: %s (FW: %s\n", isp_fw2str(compat),
+	dev_info(dev, "ISP firmware-compat: %s (FW: %s)\n", isp_fw2str(compat),
 		 isp_fw2str(version));
 
 	return compat;
