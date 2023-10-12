@@ -1093,6 +1093,8 @@ static int macaudio_late_probe(struct snd_soc_card *card)
 	ma->speaker_sample_rate_kctl = snd_soc_card_get_kcontrol(card, "Speaker Sample Rate");
 	ma->speaker_lock_kctl = snd_soc_card_get_kcontrol(card, "Speaker Volume Unlock");
 
+	macaudio_vlimit_unlock(ma, false);
+
 	return 0;
 }
 
@@ -1136,8 +1138,6 @@ static int macaudio_j313_fixup_controls(struct snd_soc_card *card) {
 		 *     what macOS sets.
 		 */
 		CHECK(snd_soc_limit_volume, "* Amp Gain Volume", 14);
-
-		macaudio_vlimit_update(ma);
 	}
 
 	return 0;
@@ -1164,8 +1164,6 @@ static int macaudio_j314_fixup_controls(struct snd_soc_card *card)
 		 */
 		CHECK(snd_soc_set_enum_kctl, "* OCE Handling", "Retry");
 		CHECK(snd_soc_deactivate_kctl, "* OCE Handling", 0);
-
-		macaudio_vlimit_update(ma);
 	}
 
 	return 0;
@@ -1205,8 +1203,6 @@ static int macaudio_j375_fixup_controls(struct snd_soc_card *card)
 
 	if (ma->has_speakers) {
 		CHECK(snd_soc_limit_volume, "* Amp Gain Volume", 14); // 20 set by macOS, this is 3 dB below
-
-		macaudio_vlimit_update(ma);
 	}
 
 	return 0;
@@ -1222,8 +1218,6 @@ static int macaudio_j493_fixup_controls(struct snd_soc_card *card)
 
 	if (ma->has_speakers) {
 		CHECK(snd_soc_limit_volume, "* Amp Gain Volume", 9); // 15 set by macOS, this is 3 dB below
-
-		macaudio_vlimit_update(ma);
 	}
 
 	return 0;	
