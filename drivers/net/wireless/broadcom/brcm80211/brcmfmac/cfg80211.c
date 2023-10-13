@@ -5129,11 +5129,11 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 	if (dev_role == NL80211_IFTYPE_AP) {
 		brcmf_dbg(TRACE, "set AP mode\n");
 		err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_AP, 1);
-			if (err < 0) {
-				bphy_err(drvr, "setting AP mode failed %d\n",
-					err);
-				goto exit;
-			}
+		if (err < 0) {
+			bphy_err(drvr, "setting AP mode failed %d\n",
+				err);
+			goto exit;
+		}
 
 		bss_enable.bsscfgidx = cpu_to_le32(ifp->bsscfgidx);
 		bss_enable.enable = cpu_to_le32(WLC_AP_IOV_OP_MANUAL_AP_BSSCFG_CREATE);
