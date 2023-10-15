@@ -85,6 +85,7 @@ do {								\
 #define BRCMF_FIL_ON()		(brcmf_msg_level & BRCMF_FIL_VAL)
 #define BRCMF_FWCON_ON()	(brcmf_msg_level & BRCMF_FWCON_VAL)
 #define BRCMF_SCAN_ON()		(brcmf_msg_level & BRCMF_SCAN_VAL)
+#define BRCMF_INFO_ON()		(brcmf_msg_level & BRCMF_INFO_VAL)
 
 #else /* defined(DEBUG) || defined(CONFIG_BRCM_TRACING) */
 
