@@ -186,15 +186,17 @@ static int cs42l84_get_dac_vol(struct snd_kcontrol *kctl,
 
 /* TODO */
 static const DECLARE_TLV_DB_SCALE(cs42l84_dac_tlv, -12800, 50, true);
+static const DECLARE_TLV_DB_SCALE(cs42l84_adc_tlv, -1200, 50, false);
+static const DECLARE_TLV_DB_SCALE(cs42l84_pre_tlv, 0, 1000, false);
 
 static const struct snd_kcontrol_new cs42l84_snd_controls[] = {
 	SOC_DOUBLE_R_S_EXT_TLV("DAC Playback Volume", CS42L84_DAC_CHA_VOL_LSB,
 			CS42L84_DAC_CHB_VOL_LSB, 0, -256, 24, 8, 0,
 			cs42l84_get_dac_vol, cs42l84_put_dac_vol, cs42l84_dac_tlv),
-	SOC_SINGLE("ADC Preamp Gain", CS42L84_ADC_CTL1,
-			CS42L84_ADC_CTL1_PREAMP_GAIN_SHIFT, 2, 0),
-	SOC_SINGLE("ADC PGA Gain", CS42L84_ADC_CTL1,
-			CS42L84_ADC_CTL1_PGA_GAIN_SHIFT, 31, 0),
+	SOC_SINGLE_TLV("ADC Preamp Capture Volume", CS42L84_ADC_CTL1,
+			CS42L84_ADC_CTL1_PREAMP_GAIN_SHIFT, 2, 0, cs42l84_pre_tlv),
+	SOC_SINGLE_TLV("ADC PGA Capture Volume", CS42L84_ADC_CTL1,
+			CS42L84_ADC_CTL1_PGA_GAIN_SHIFT, 24, 0, cs42l84_adc_tlv),
 	SOC_SINGLE("ADC WNF Switch", CS42L84_ADC_CTL4,
 			CS42L84_ADC_CTL4_WNF_EN_SHIFT, 1, 0),
 	SOC_SINGLE("WNF Corner Frequency", CS42L84_ADC_CTL4,
