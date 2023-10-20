@@ -99,9 +99,6 @@
 #define PKT_TOKEN_IDX			15
 #define IDLE_TOKEN_IDX			12
 
-#define BRCMF_MAX_CHANSPEC_LIST \
-	(BRCMF_DCMD_MEDLEN / sizeof(__le32) - 1)
-
 struct brcmf_dump_survey {
 	u32 obss;
 	u32 ibss;
@@ -7159,34 +7156,261 @@ static void brcmf_update_bw40_channel_flag(struct ieee80211_channel *channel,
 	}
 }
 
+/** brcmf_channel_info_provider - retrieve channel info from firmware using different methods
+ *
+ * @get_channel_count - Get number of channels available
+ * @get_channel_spec - Get a chanspec for a channel
+ * @get_channel_info - Get chaninfo for a channel
+ */
+struct brcmf_channel_info_provider {
+	u32 (*get_channel_count)(struct brcmf_channel_info_provider *);
+	u16 (*get_channel_spec)(struct brcmf_channel_info_provider *, u32);
+	u32 (*get_channel_info)(struct brcmf_channel_info_provider *, u32);
+	struct {
+		void *buf;
+		struct brcmf_cfg80211_info *cfg;
+	} private;
+};
+
+static u32
+brcmf_channel_count_from_chan_info_list(struct brcmf_channel_info_provider *cip)
+{
+	struct brcmf_chaninfo_list_v1_le *list;
+
+	if (!cip) {
+		bphy_err(cip->private.cfg,
+			 "Asked for channel count on NULL provider\n");
+		return 0;
+	}
+	list = (struct brcmf_chaninfo_list_v1_le *)cip->private.buf;
+
+	if (!list) {
+		bphy_err(cip->private.cfg,
+			 "Asked for channel count on NULL list\n");
+		return 0;
+	}
+	return le16_to_cpu(list->count);
+}
+
+static u32
+brcmf_channel_count_from_chanspec_list(struct brcmf_channel_info_provider *cip)
+{
+	struct brcmf_chanspec_list *list;
+
+	if (!cip) {
+		bphy_err(cip->private.cfg,
+			 "Asked for channel count on NULL provider\n");
+		return 0;
+	}
+	list = (struct brcmf_chanspec_list *)cip->private.buf;
+	if (!list) {
+		bphy_err(cip->private.cfg,
+			 "Asked for channel count on NULL list\n");
+		return 0;
+	}
+	return le32_to_cpu(list->count);
+}
+
+static u16
+brcmf_chanspec_from_chan_info_list(struct brcmf_channel_info_provider *cip,
+				   u32 idx)
+{
+	struct brcmf_chaninfo_list_v1_le *list;
+	u16 list_count;
+
+	if (!cip) {
+		bphy_err(cip->private.cfg,
+			 "Asked for channel spec on NULL provider\n");
+		return 0;
+	}
+	list = (struct brcmf_chaninfo_list_v1_le *)cip->private.buf;
+	if (!list) {
+		bphy_err(cip->private.cfg,
+			 "Asked for channel spec on NULL list\n");
+		return 0;
+	}
+	list_count = le16_to_cpu(list->count);
+	if (idx >= list_count) {
+		bphy_err(cip->private.cfg,
+			 "index greater than number of channels: %u vs %u\n",
+			 idx, list_count);
+	}
+	return (u16)le32_to_cpu(list->channels[idx].chanspec);
+}
+
+static u16
+brcmf_chanspec_from_chanspec_list(struct brcmf_channel_info_provider *cip,
+				  u32 idx)
+{
+	struct brcmf_chanspec_list *list =
+		(struct brcmf_chanspec_list *)cip->private.buf;
+	u32 list_count;
+
+	if (!cip) {
+		bphy_err(cip->private.cfg,
+			 "Asked for channel spec on NULL provider\n");
+		return 0;
+	}
+	if (!list) {
+		bphy_err(cip->private.cfg,
+			 "Asked for channel spec on NULL list\n");
+		return 0;
+	}
+	list_count = le32_to_cpu(list->count);
+	if (idx >= list_count) {
+		bphy_err(cip->private.cfg,
+			 "index greater than number of channels: %u vs %u\n",
+			 idx, list_count);
+	}
+	return (u16)le32_to_cpu(list->element[idx]);
+}
+
+static u32
+brcmf_chaninfo_from_chan_info_list(struct brcmf_channel_info_provider *cip,
+				   u32 idx)
+{
+	struct brcmf_chaninfo_list_v1_le *list;
+	u16 list_count;
+
+	if (!cip) {
+		bphy_err(cip->private.cfg,
+			 "Asked for channel info on NULL provider\n");
+		return 0;
+	}
+	list = (struct brcmf_chaninfo_list_v1_le *)cip->private.buf;
+	if (!list) {
+		bphy_err(cip->private.cfg,
+			 "Asked for channel info on NULL list\n");
+		return 0;
+	}
+	list_count = le16_to_cpu(list->count);
+	if (idx >= list_count) {
+		bphy_err(cip->private.cfg,
+			 "index greater than number of channels: %u vs %u\n",
+			 idx, list_count);
+	}
+	return (u16)le32_to_cpu(list->channels[idx].chanspec);
+}
+
+static u32
+brcmf_chaninfo_from_chanspec_list(struct brcmf_channel_info_provider *cip,
+				  u32 idx)
+{
+	struct brcmf_chanspec_list *list;
+	struct brcmf_pub *drvr;
+	struct brcmf_if *ifp;
+	u32 list_count;
+	u32 chaninfo;
+	int err;
+
+	if (!cip) {
+		bphy_err(cip->private.cfg,
+			 "Asked for channel info on NULL provider\n");
+		return 0;
+	}
+	list = (struct brcmf_chanspec_list *)cip->private.buf;
+
+	if (!list) {
+		bphy_err(cip->private.cfg,
+			 "Asked for channel info on NULL list\n");
+		return 0;
+	}
+
+	drvr = cip->private.cfg->pub;
+	ifp = brcmf_get_ifp(drvr, 0);
+	list_count = le32_to_cpu(list->count);
+	if (idx >= list_count) {
+		bphy_err(cip->private.cfg,
+			 "index greater than number of channels: %u vs %u\n",
+			 idx, list_count);
+	}
+	chaninfo = le32_to_cpu(list->element[idx]);
+	err = brcmf_fil_bsscfg_int_get(ifp, "per_chan_info", &chaninfo);
+	if (err) {
+		bphy_err(cip->private.cfg,
+			 "Error retrieving per channel info:%d\n", err);
+		return 0;
+	}
+
+	return chaninfo;
+}
+
+static int
+brcmf_init_channel_info_provider(struct brcmf_cfg80211_info *cfg,
+				 struct brcmf_channel_info_provider *prov)
+{
+	struct brcmf_pub *drvr = cfg->pub;
+	struct brcmf_if *ifp = brcmf_get_ifp(drvr, 0);
+	u32 count;
+	int err;
+
+	prov->private.buf = kzalloc(BRCMF_DCMD_MAXLEN, GFP_KERNEL);
+	if (prov->private.buf == NULL)
+		return -ENOMEM;
+
+	/* Use chan_info_list if it's available */
+	err = brcmf_fil_bsscfg_data_get(ifp, "chan_info_list",
+					prov->private.buf,
+					BRCMF_DCMD_MAXLEN / 2);
+	if (!err) {
+		/* Check the size of result vs structure size */
+		count = brcmf_channel_count_from_chan_info_list(prov);
+		if (struct_size_t(struct brcmf_chaninfo_list_v1_le, channels,
+				  count) > BRCMF_DCMD_MAXLEN / 2) {
+			bphy_err(cfg, "Chaninfo list was truncated\n");
+			return -ENOMEM;
+		}
+		prov->get_channel_count =
+			brcmf_channel_count_from_chan_info_list;
+		prov->get_channel_spec = brcmf_chanspec_from_chan_info_list;
+		prov->get_channel_info = brcmf_chaninfo_from_chan_info_list;
+		return 0;
+	}
+	err = brcmf_fil_bsscfg_data_get(ifp, "chanspecs", prov->private.buf,
+					BRCMF_DCMD_MEDLEN);
+	if (err) {
+		bphy_err(drvr, "get chanspecs error (%d)\n", err);
+		goto done;
+	}
+	/* Check the size of result vs structure size */
+	count = brcmf_channel_count_from_chan_info_list(prov);
+	if (struct_size_t(struct brcmf_chanspec_list, element, count) >
+	    BRCMF_DCMD_MEDLEN) {
+		bphy_err(cfg, "Chanspec list was truncated\n");
+		return -ENOMEM;
+	}
+	prov->get_channel_count = brcmf_channel_count_from_chanspec_list;
+	prov->get_channel_spec = brcmf_chanspec_from_chanspec_list;
+	prov->get_channel_info = brcmf_chaninfo_from_chanspec_list;
+done:
+	kfree(prov->private.buf);
+	return err;
+}
+
+static void brcmf_free_channel_info_provider(struct brcmf_channel_info_provider *cip) {
+	kfree(cip->private.buf);
+}
+
 static int brcmf_construct_chaninfo(struct brcmf_cfg80211_info *cfg,
 				    u32 bw_cap[])
 {
 	struct wiphy *wiphy = cfg_to_wiphy(cfg);
 	struct brcmf_pub *drvr = cfg->pub;
-	struct brcmf_if *ifp = brcmf_get_ifp(drvr, 0);
 	struct ieee80211_supported_band *band;
 	struct ieee80211_channel *channel;
-	struct brcmf_chanspec_list *list;
 	struct brcmu_chan ch;
+	struct brcmf_channel_info_provider prov;
 	int err;
-	u8 *pbuf;
 	u32 i, j;
-	u32 total;
+	u16 total;
 	u32 chaninfo;
 
-	pbuf = kzalloc(BRCMF_DCMD_MEDLEN, GFP_KERNEL);
-
-	if (pbuf == NULL)
-		return -ENOMEM;
-
-	list = (struct brcmf_chanspec_list *)pbuf;
-
-	err = brcmf_fil_iovar_data_get(ifp, "chanspecs", pbuf,
-				       BRCMF_DCMD_MEDLEN);
+	memset(&prov, 0, sizeof(prov));
+	err = brcmf_init_channel_info_provider(cfg, &prov);
 	if (err) {
-		bphy_err(drvr, "get chanspecs error (%d)\n", err);
-		goto fail_pbuf;
+		bphy_err(cfg, "Error initializing channel provider:(%d)\n",
+			 err);
+		return err;
 	}
 
 	/* Changing regulatory domain may change power limits upwards.
@@ -7217,16 +7441,20 @@ static int brcmf_construct_chaninfo(struct brcmf_cfg80211_info *cfg,
 		for (i = 0; i < band->n_channels; i++)
 			band->channels[i].flags = IEEE80211_CHAN_DISABLED;
 	}
-	total = le32_to_cpu(list->count);
-	if (total > BRCMF_MAX_CHANSPEC_LIST) {
-		bphy_err(drvr, "Invalid count of channel Spec. (%u)\n",
-			 total);
+	total = prov.get_channel_count(&prov);
+	if (total == 0) {
+		bphy_err(drvr, "Invalid count of channel Spec. (%u)\n", total);
 		err = -EINVAL;
-		goto fail_pbuf;
+		return err;
 	}
 
+	brcmf_dbg(INFO, "CIL: We received %d channel items\n", total);
+
 	for (i = 0; i < total; i++) {
-		ch.chspec = (u16)le32_to_cpu(list->element[i]);
+		brcmf_dbg(INFO, "CIL: Item %d chanspec:%x, chaninfo:%x\n", i,
+			  prov.get_channel_spec(&prov, i),
+			  prov.get_channel_info(&prov, i));
+		ch.chspec = prov.get_channel_spec(&prov, i);
 		cfg->d11inf.decchspec(&ch);
 
 		if (ch.band == BRCMU_CHAN_BAND_2G) {
@@ -7260,7 +7488,8 @@ static int brcmf_construct_chaninfo(struct brcmf_cfg80211_info *cfg,
 			/* It seems firmware supports some channel we never
 			 * considered. Something new in IEEE standard?
 			 */
-			bphy_err(drvr, "Ignoring unexpected firmware channel %d\n",
+			bphy_err(drvr,
+				 "Ignoring unexpected firmware channel %d\n",
 				 ch.control_ch_num);
 			continue;
 		}
@@ -7273,17 +7502,23 @@ static int brcmf_construct_chaninfo(struct brcmf_cfg80211_info *cfg,
 		 */
 		switch (ch.bw) {
 		case BRCMU_CHAN_BW_160:
+			brcmf_dbg(INFO, "Turning on 160mhz for channel %d, remaining flags %x\n",
+				  channel->hw_value, channel->flags);
 			channel->flags &= ~IEEE80211_CHAN_NO_160MHZ;
 			break;
 		case BRCMU_CHAN_BW_80:
+			brcmf_dbg(INFO, "Turning on 80mhz for channel %d, remaining flags %x\n",
+				  channel->hw_value, channel->flags);
 			channel->flags &= ~IEEE80211_CHAN_NO_80MHZ;
 			break;
 		case BRCMU_CHAN_BW_40:
 			brcmf_update_bw40_channel_flag(channel, &ch);
 			break;
 		default:
-			wiphy_warn(wiphy, "Firmware reported unsupported bandwidth %d\n",
-				   ch.bw);
+			wiphy_warn(
+				wiphy,
+				"Firmware reported unsupported bandwidth %d\n",
+				ch.bw);
 			fallthrough;
 		case BRCMU_CHAN_BW_20:
 			/* enable the channel and disable other bandwidths
@@ -7293,26 +7528,16 @@ static int brcmf_construct_chaninfo(struct brcmf_cfg80211_info *cfg,
 			channel->flags = IEEE80211_CHAN_NO_HT40 |
 					 IEEE80211_CHAN_NO_80MHZ |
 					 IEEE80211_CHAN_NO_160MHZ;
-			ch.bw = BRCMU_CHAN_BW_20;
-			cfg->d11inf.encchspec(&ch);
-			chaninfo = ch.chspec;
-			err = brcmf_fil_bsscfg_int_get(ifp, "per_chan_info",
-						       &chaninfo);
-			if (!err) {
-				if (chaninfo & WL_CHAN_RADAR)
-					channel->flags |=
-						(IEEE80211_CHAN_RADAR |
-						 IEEE80211_CHAN_NO_IR);
-				if (chaninfo & WL_CHAN_PASSIVE)
-					channel->flags |=
-						IEEE80211_CHAN_NO_IR;
-			}
+			chaninfo = prov.get_channel_info(&prov, i);
+			if (chaninfo & WL_CHAN_RADAR)
+				channel->flags |= (IEEE80211_CHAN_RADAR |
+						   IEEE80211_CHAN_NO_IR);
+			if (chaninfo & WL_CHAN_PASSIVE)
+				channel->flags |= IEEE80211_CHAN_NO_IR;
 		}
 	}
-
-fail_pbuf:
-	kfree(pbuf);
-	return err;
+	brcmf_free_channel_info_provider(&prov);
+	return 0;
 }
 
 static int brcmf_enable_bw40_2g(struct brcmf_cfg80211_info *cfg)
@@ -7321,8 +7546,7 @@ static int brcmf_enable_bw40_2g(struct brcmf_cfg80211_info *cfg)
 	struct brcmf_if *ifp = brcmf_get_ifp(drvr, 0);
 	struct ieee80211_supported_band *band;
 	struct brcmf_fil_bwcap_le band_bwcap;
-	struct brcmf_chanspec_list *list;
-	u8 *pbuf;
+	struct brcmf_channel_info_provider prov;
 	u32 val;
 	int err;
 	struct brcmu_chan ch;
@@ -7346,48 +7570,33 @@ static int brcmf_enable_bw40_2g(struct brcmf_cfg80211_info *cfg)
 	}
 
 	if (!err) {
-		/* update channel info in 2G band */
-		pbuf = kzalloc(BRCMF_DCMD_MEDLEN, GFP_KERNEL);
-
-		if (pbuf == NULL)
-			return -ENOMEM;
-
-		ch.band = BRCMU_CHAN_BAND_2G;
-		ch.bw = BRCMU_CHAN_BW_40;
-		ch.sb = BRCMU_CHAN_SB_NONE;
-		ch.chnum = 0;
-		cfg->d11inf.encchspec(&ch);
-
-		/* pass encoded chanspec in query */
-		*(__le16 *)pbuf = cpu_to_le16(ch.chspec);
-
-		err = brcmf_fil_iovar_data_get(ifp, "chanspecs", pbuf,
-					       BRCMF_DCMD_MEDLEN);
+		err = brcmf_init_channel_info_provider(cfg, &prov);
 		if (err) {
-			bphy_err(drvr, "get chanspecs error (%d)\n", err);
-			kfree(pbuf);
+			bphy_err(
+				cfg,
+				"Error initializing channel info provider:%d\n",
+				err);
 			return err;
 		}
 
 		band = cfg_to_wiphy(cfg)->bands[NL80211_BAND_2GHZ];
-		list = (struct brcmf_chanspec_list *)pbuf;
-		num_chan = le32_to_cpu(list->count);
-		if (num_chan > BRCMF_MAX_CHANSPEC_LIST) {
+		num_chan = prov.get_channel_count(&prov);
+		if (num_chan == 0) {
 			bphy_err(drvr, "Invalid count of channel Spec. (%u)\n",
 				 num_chan);
-			kfree(pbuf);
 			return -EINVAL;
 		}
 
 		for (i = 0; i < num_chan; i++) {
-			ch.chspec = (u16)le32_to_cpu(list->element[i]);
+			ch.chspec = prov.get_channel_spec(&prov, i);
 			cfg->d11inf.decchspec(&ch);
-			if (WARN_ON(ch.band != BRCMU_CHAN_BAND_2G))
-				continue;
-			if (WARN_ON(ch.bw != BRCMU_CHAN_BW_40))
+			/* Skip the channels we are not interested in */
+			if (ch.band != BRCMU_CHAN_BAND_2G ||
+			    ch.bw != BRCMU_CHAN_BW_40)
 				continue;
 			for (j = 0; j < band->n_channels; j++) {
-				if (band->channels[j].hw_value == ch.control_ch_num)
+				if (band->channels[j].hw_value ==
+				    ch.control_ch_num)
 					break;
 			}
 			if (WARN_ON(j == band->n_channels))
@@ -7395,8 +7604,8 @@ static int brcmf_enable_bw40_2g(struct brcmf_cfg80211_info *cfg)
 
 			brcmf_update_bw40_channel_flag(&band->channels[j], &ch);
 		}
-		kfree(pbuf);
 	}
+	brcmf_free_channel_info_provider(&prov);
 	return err;
 }
 
