@@ -935,6 +935,30 @@ struct brcmf_chanspec_list {
 	__le32  element[];	/* variable length uint32 list */
 };
 
+/**
+ * struct brcmf_chaninfo_list_item_v1_le - New channel list info attribute
+ * @chaninfo: Radar/IR/per channel info that used to be in per_chan_info
+ * @chanspec: Chanspec for channel
+ */
+struct brcmf_chaninfo_list_item_v1_le {
+	__le32 chaninfo;
+	__le32 chanspec;
+};
+
+/**
+ * struct brcmf_chaninfo_list_v1_le - new format list of channel info
+ * 
+ * @version: Version number of structure
+ * @count: Number of items
+ * @channels: Info
+ */
+struct brcmf_chaninfo_list_v1_le {
+	__le16 version;
+	__le16 count;
+	struct brcmf_chaninfo_list_item_v1_le channels[];
+};
+#define BRCMF_CHANINFO_LIST_VERSION_VERSION 1
+
 /*
  * WLC_E_PROBRESP_MSG
  * WLC_E_P2P_PROBREQ_MSG
