@@ -570,7 +570,7 @@ static int macaudio_parse_of(struct macaudio_snd_data *ma)
 				continue;
 			}
 			ma->has_speakers = 1;
-			if (ma->cfg->amp != AMP_SSM3515)
+			if (ma->cfg->amp != AMP_SSM3515 && ma->cfg->safe_vol != 0)
 				ma->has_sense = 1;
 		}
 
