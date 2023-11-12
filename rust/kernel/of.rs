@@ -500,21 +500,41 @@ where
 
 /// Returns the root node of the OF device tree (if any).
 pub fn root() -> Option<Node> {
+    #[cfg(not(CONFIG_OF))]
+    {
+        None
+    }
+    #[cfg(CONFIG_OF)]
     unsafe { Node::get_from_raw(bindings::of_root) }
 }
 
 /// Returns the /chosen node of the OF device tree (if any).
 pub fn chosen() -> Option<Node> {
+    #[cfg(not(CONFIG_OF))]
+    {
+        None
+    }
+    #[cfg(CONFIG_OF)]
     unsafe { Node::get_from_raw(bindings::of_chosen) }
 }
 
 /// Returns the /aliases node of the OF device tree (if any).
 pub fn aliases() -> Option<Node> {
+    #[cfg(not(CONFIG_OF))]
+    {
+        None
+    }
+    #[cfg(CONFIG_OF)]
     unsafe { Node::get_from_raw(bindings::of_aliases) }
 }
 
 /// Returns the system stdout node of the OF device tree (if any).
 pub fn stdout() -> Option<Node> {
+    #[cfg(not(CONFIG_OF))]
+    {
+        None
+    }
+    #[cfg(CONFIG_OF)]
     unsafe { Node::get_from_raw(bindings::of_stdout) }
 }
 
