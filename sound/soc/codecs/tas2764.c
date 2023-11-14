@@ -668,8 +668,9 @@ static int tas2764_codec_probe(struct snd_soc_component *component)
 
 	if (tas2764->sdz_gpio) {
 		gpiod_set_value_cansleep(tas2764->sdz_gpio, 1);
-		usleep_range(1000, 2000);
 	}
+
+	usleep_range(1000, 2000);
 
 	tas2764_reset(tas2764);
 	regmap_reinit_cache(tas2764->regmap, &tas2764_i2c_regmap);
