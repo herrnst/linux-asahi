@@ -2968,7 +2968,7 @@ int iommu_fwspec_init(struct device *dev, struct fwnode_handle *iommu_fwnode,
 		return ret;
 	}
 
-	dev_iommu_fwspec_set(dev, fwspec);
+	dev->iommu->fwspec = fwspec;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(iommu_fwspec_init);
