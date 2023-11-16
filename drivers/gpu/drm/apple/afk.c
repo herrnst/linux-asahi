@@ -559,12 +559,14 @@ static bool afk_recv(struct apple_dcp_afkep *ep)
 	if (rptr == wptr)
 		return false;
 
-	if (rptr > ep->rxbfr.bufsz) {
+	if (rptr > (ep->rxbfr.bufsz - sizeof(*hdr))) {
 		dev_warn(ep->dcp->dev,
 			 "AFK[ep:%02x]: rptr out of bounds: 0x%x > 0x%lx\n",
-			 ep->endpoint, rptr, ep->rxbfr.bufsz);
+			 ep->endpoint, rptr, ep->rxbfr.bufsz - sizeof(*hdr));
 		return false;
 	}
+
+	dma_rmb();
 
 	hdr = ep->rxbfr.buf + rptr;
 	magic = le32_to_cpu(hdr->magic);
@@ -616,6 +618,9 @@ static bool afk_recv(struct apple_dcp_afkep *ep)
 		rptr = 0;
 	if (rptr == ep->rxbfr.bufsz)
 		rptr = 0;
+
+	dma_mb();
+
 	ep->rxbfr.hdr->rptr = cpu_to_le32(rptr);
 	trace_afk_recv_rwptr_post(ep, rptr, wptr);
 
