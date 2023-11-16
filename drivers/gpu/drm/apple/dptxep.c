@@ -377,7 +377,7 @@ dptxport_call_activate(struct apple_epic_service *service,
 	phy_set_mode_ext(dptx->atcphy, PHY_MODE_DP, dcp->index);
 
 	memcpy(reply, data, min(reply_size, data_size));
-	if (reply_size > 4)
+	if (reply_size >= 4)
 		memset(reply, 0, 4);
 
 	return 0;
@@ -430,7 +430,7 @@ static int dptxport_call(struct apple_epic_service *service, u32 idx,
 	case DPTX_APCALL_SET_DRIVE_SETTINGS:
 	case DPTX_APCALL_GET_DRIVE_SETTINGS:
 		memcpy(reply, data, min(reply_size, data_size));
-		if (reply_size > 4)
+		if (reply_size >= 4)
 			memset(reply, 0, 4);
 		return 0;
 	}
