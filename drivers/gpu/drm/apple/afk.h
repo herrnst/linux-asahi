@@ -106,7 +106,8 @@ struct epic_cmd {
 	__le64 txbuf;
 	__le32 rxlen;
 	__le32 txlen;
-	u16 pad;
+	u8 rxcookie;
+	u8 txcookie;
 } __attribute__((packed));
 
 struct epic_service_call {
