@@ -19,6 +19,8 @@
 
 #define NO_IOMMU	1
 
+void dev_iommu_free(struct device *dev);
+
 static int of_iommu_xlate(struct device *dev,
 			  struct of_phandle_args *iommu_spec)
 {
@@ -32,15 +34,18 @@ static int of_iommu_xlate(struct device *dev,
 		return NO_IOMMU;
 
 	ret = iommu_fwspec_init(dev, &iommu_spec->np->fwnode, ops);
-	if (ret)
-		return ret;
-	/*
-	 * The otherwise-empty fwspec handily serves to indicate the specific
-	 * IOMMU device we're waiting for, which will be useful if we ever get
-	 * a proper probe-ordering dependency mechanism in future.
-	 */
-	if (!ops)
+
+	if (!ops) {
+		/* Start from scratch */
+		if (dev->iommu)
+			dev_iommu_free(dev);
 		return driver_deferred_probe_check_state(dev);
+	}
+
+	if (ret) {
+		dev_info(dev, "iommu_fwspec_init: %d\n", ret);
+		return ret;
+	}
 
 	if (!try_module_get(ops->owner))
 		return -ENODEV;
