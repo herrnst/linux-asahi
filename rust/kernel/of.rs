@@ -167,7 +167,9 @@ impl Node {
             false
         }
         #[cfg(CONFIG_OF)]
-        unsafe { bindings::of_node_is_root(self.raw_node) }
+        unsafe {
+            bindings::of_node_is_root(self.raw_node)
+        }
     }
 
     /// Returns the parent node, if any.
@@ -505,7 +507,9 @@ pub fn root() -> Option<Node> {
         None
     }
     #[cfg(CONFIG_OF)]
-    unsafe { Node::get_from_raw(bindings::of_root) }
+    unsafe {
+        Node::get_from_raw(bindings::of_root)
+    }
 }
 
 /// Returns the /chosen node of the OF device tree (if any).
@@ -515,7 +519,9 @@ pub fn chosen() -> Option<Node> {
         None
     }
     #[cfg(CONFIG_OF)]
-    unsafe { Node::get_from_raw(bindings::of_chosen) }
+    unsafe {
+        Node::get_from_raw(bindings::of_chosen)
+    }
 }
 
 /// Returns the /aliases node of the OF device tree (if any).
@@ -525,7 +531,9 @@ pub fn aliases() -> Option<Node> {
         None
     }
     #[cfg(CONFIG_OF)]
-    unsafe { Node::get_from_raw(bindings::of_aliases) }
+    unsafe {
+        Node::get_from_raw(bindings::of_aliases)
+    }
 }
 
 /// Returns the system stdout node of the OF device tree (if any).
@@ -535,7 +543,9 @@ pub fn stdout() -> Option<Node> {
         None
     }
     #[cfg(CONFIG_OF)]
-    unsafe { Node::get_from_raw(bindings::of_stdout) }
+    unsafe {
+        Node::get_from_raw(bindings::of_stdout)
+    }
 }
 
 #[allow(unused_variables)]
