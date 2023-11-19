@@ -404,18 +404,6 @@ static int isp_ch_configure_capture(struct apple_isp *isp, u32 ch)
 	if (err)
 		return err;
 
-	err = isp_cmd_apple_ch_temporal_filter_start(isp, ch, isp->temporal_filter);
-	if (err)
-		return err;
-
-	err = isp_cmd_apple_ch_motion_history_start(isp, ch);
-	if (err)
-		return err;
-
-	err = isp_cmd_apple_ch_temporal_filter_enable(isp, ch);
-	if (err)
-		return err;
-
 	err = isp_cmd_apple_ch_ae_fd_scene_metering_config_set(isp, ch);
 	if (err)
 		return err;
@@ -444,7 +432,7 @@ static int isp_ch_configure_capture(struct apple_isp *isp, u32 ch)
 	if (err)
 		return err;
 
-	err = isp_cmd_apple_ch_temporal_filter_start(isp, ch, isp->hw->temporal_filter);
+	err = isp_cmd_apple_ch_temporal_filter_start(isp, ch, isp->temporal_filter);
 	if (err)
 		return err;
 
