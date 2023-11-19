@@ -5,6 +5,7 @@
 #define __APPLE_VERSION_UTILS_H__
 
 #include <linux/kernel.h>
+#include <linux/args.h>
 
 #define DCP_FW_UNION(u) (u).DCP_FW
 #define DCP_FW_SUFFIX CONCATENATE(_, DCP_FW)
