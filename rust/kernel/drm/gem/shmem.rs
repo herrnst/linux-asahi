@@ -260,7 +260,6 @@ impl<T: DriverObject> drv::AllocImpl for Object<T> {
         prime_fd_to_handle: Some(bindings::drm_gem_prime_fd_to_handle),
         gem_prime_import: None,
         gem_prime_import_sg_table: Some(bindings::drm_gem_shmem_prime_import_sg_table),
-        gem_prime_mmap: Some(bindings::drm_gem_prime_mmap),
         dumb_create: Some(bindings::drm_gem_shmem_dumb_create),
         dumb_map_offset: None,
     };
