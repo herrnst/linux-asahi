@@ -298,8 +298,8 @@ impl<T: DriverObject> DerefMut for Object<T> {
 impl<T: DriverObject> drv::AllocImpl for Object<T> {
     const ALLOC_OPS: drv::AllocOps = drv::AllocOps {
         gem_create_object: None,
-        prime_handle_to_fd: Some(bindings::drm_gem_prime_handle_to_fd),
-        prime_fd_to_handle: Some(bindings::drm_gem_prime_fd_to_handle),
+        prime_handle_to_fd: None,
+        prime_fd_to_handle: None,
         gem_prime_import: None,
         gem_prime_import_sg_table: None,
         dumb_create: None,
