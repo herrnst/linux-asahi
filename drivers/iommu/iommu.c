@@ -2900,6 +2900,8 @@ int iommu_fwspec_assign_iommu(struct iommu_fwspec *fwspec, struct device *dev,
 		 * same driver, checked via same ops.
 		 */
 		ops = iommu_ops_from_fwnode(iommu_fwnode);
+		if (!ops)
+			return driver_deferred_probe_check_state(dev);
 		if (fwspec->ops != ops)
 			return -EINVAL;
 		return 0;
