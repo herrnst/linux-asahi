@@ -7310,42 +7310,48 @@ static int brcmf_enable_bw40_2g(struct brcmf_cfg80211_info *cfg)
 		err = brcmf_fil_iovar_int_set(ifp, "mimo_bw_cap", val);
 	}
 
-	if (!err) {
-		err = brcmf_init_channel_info_provider(cfg, &prov);
-		if (err) {
-			bphy_err(
-				cfg,
-				"Error initializing channel info provider:%d\n",
-				err);
-			return err;
-		}
-
-		band = cfg_to_wiphy(cfg)->bands[NL80211_BAND_2GHZ];
-		num_chan = prov.get_channel_count(&prov);
-		if (num_chan == 0) {
-			bphy_err(drvr, "Invalid count of channel Spec. (%u)\n",
-				 num_chan);
-			return -EINVAL;
-		}
-
-		for (i = 0; i < num_chan; i++) {
-			ch.chspec = prov.get_channel_spec(&prov, i);
-			cfg->d11inf.decchspec(&ch);
-			/* Skip the channels we are not interested in */
-			if (ch.band != BRCMU_CHAN_BAND_2G ||
-			    ch.bw != BRCMU_CHAN_BW_40)
-				continue;
-			for (j = 0; j < band->n_channels; j++) {
-				if (band->channels[j].hw_value ==
-				    ch.control_ch_num)
-					break;
-			}
-			if (WARN_ON(j == band->n_channels))
-				continue;
-
-			brcmf_update_bw40_channel_flag(&band->channels[j], &ch);
-		}
+	if (err) {
+		brcmf_dbg(INFO, "failed to set bw_cap\n");
+		return err;
 	}
+
+	err = brcmf_init_channel_info_provider(cfg, &prov);
+	if (err) {
+		bphy_err(
+			cfg,
+			"Error initializing channel info provider:%d\n",
+			err);
+		return err;
+	}
+
+	band = cfg_to_wiphy(cfg)->bands[NL80211_BAND_2GHZ];
+	num_chan = prov.get_channel_count(&prov);
+	if (num_chan == 0) {
+		bphy_err(drvr, "Invalid count of channel Spec. (%u)\n",
+			 num_chan);
+		err = -EINVAL;
+		goto err_free;
+	}
+
+	for (i = 0; i < num_chan; i++) {
+		ch.chspec = prov.get_channel_spec(&prov, i);
+		cfg->d11inf.decchspec(&ch);
+		/* Skip the channels we are not interested in */
+		if (ch.band != BRCMU_CHAN_BAND_2G ||
+		    ch.bw != BRCMU_CHAN_BW_40)
+			continue;
+		for (j = 0; j < band->n_channels; j++) {
+			if (band->channels[j].hw_value ==
+			    ch.control_ch_num)
+				break;
+		}
+		if (WARN_ON(j == band->n_channels))
+			continue;
+
+		brcmf_update_bw40_channel_flag(&band->channels[j], &ch);
+	}
+
+err_free:
 	brcmf_free_channel_info_provider(&prov);
 	return err;
 }
