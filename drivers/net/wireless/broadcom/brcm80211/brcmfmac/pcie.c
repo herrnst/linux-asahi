@@ -2076,10 +2076,11 @@ static int brcmf_pcie_download_fw_nvram(struct brcmf_pciedev_info *devinfo,
 	 */
 	brcmf_pcie_write_ram32(devinfo, devinfo->ci->ramsize - 4, 0);
 
+	address = devinfo->ci->rambase + devinfo->ci->ramsize;
+
 	if (nvram) {
 		brcmf_dbg(PCIE, "Download NVRAM %s\n", devinfo->nvram_name);
-		address = devinfo->ci->rambase + devinfo->ci->ramsize -
-			  nvram_len;
+		address -= nvram_len;
 		memcpy_toio(devinfo->tcm + address, nvram, nvram_len);
 		brcmf_fw_nvram_free(nvram);
 
