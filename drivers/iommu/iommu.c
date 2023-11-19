@@ -2926,6 +2926,12 @@ int iommu_fwspec_of_xlate(struct iommu_fwspec *fwspec, struct device *dev,
 	int ret;
 
 	ret = iommu_fwspec_assign_iommu(fwspec, dev, iommu_fwnode);
+	if (ret == -EPROBE_DEFER) {
+		mutex_lock(&iommu_probe_device_lock);
+		if (dev->iommu)
+			dev_iommu_free(dev);
+		mutex_unlock(&iommu_probe_device_lock);
+	}
 	if (ret)
 		return ret;
 
