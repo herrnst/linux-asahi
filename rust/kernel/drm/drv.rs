@@ -96,12 +96,6 @@ pub struct AllocOps {
             sgt: *mut bindings::sg_table,
         ) -> *mut bindings::drm_gem_object,
     >,
-    pub(crate) gem_prime_mmap: Option<
-        unsafe extern "C" fn(
-            obj: *mut bindings::drm_gem_object,
-            vma: *mut bindings::vm_area_struct,
-        ) -> core::ffi::c_int,
-    >,
     pub(crate) dumb_create: Option<
         unsafe extern "C" fn(
             file_priv: *mut bindings::drm_file,
@@ -223,7 +217,6 @@ impl<T: Driver> Registration<T> {
         prime_fd_to_handle: T::Object::ALLOC_OPS.prime_fd_to_handle,
         gem_prime_import: T::Object::ALLOC_OPS.gem_prime_import,
         gem_prime_import_sg_table: T::Object::ALLOC_OPS.gem_prime_import_sg_table,
-        gem_prime_mmap: T::Object::ALLOC_OPS.gem_prime_mmap,
         dumb_create: T::Object::ALLOC_OPS.dumb_create,
         dumb_map_offset: T::Object::ALLOC_OPS.dumb_map_offset,
         show_fdinfo: None,
