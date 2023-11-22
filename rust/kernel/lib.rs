@@ -16,7 +16,6 @@
 #![feature(coerce_unsized)]
 #![feature(const_mut_refs)]
 #![feature(const_refs_to_cell)]
-#![feature(const_trait_impl)]
 #![feature(dispatch_from_dyn)]
 #![feature(duration_constants)]
 #![feature(new_uninit)]
