@@ -15,6 +15,7 @@ use core::num::NonZeroU32;
 use crate::{
     alloc::flags::*,
     bindings, driver,
+    driver::RawDeviceId,
     prelude::*,
     str::{BStr, CStr},
 };
@@ -74,7 +75,7 @@ macro_rules! module_of_id_table {
 }
 
 // SAFETY: `ZERO` is all zeroed-out and `to_rawid` stores `offset` in `of_device_id::data`.
-unsafe impl const driver::RawDeviceId for DeviceId {
+unsafe impl driver::RawDeviceId for DeviceId {
     type RawType = bindings::of_device_id;
     const ZERO: Self::RawType = bindings::of_device_id {
         name: [0; 32],
@@ -82,8 +83,11 @@ unsafe impl const driver::RawDeviceId for DeviceId {
         compatible: [0; 128],
         data: core::ptr::null(),
     };
+}
 
-    fn to_rawid(&self, offset: isize) -> Self::RawType {
+impl DeviceId {
+    #[doc(hidden)]
+    pub const fn to_rawid(&self, offset: isize) -> <Self as driver::RawDeviceId>::RawType {
         let DeviceId::Compatible(compatible) = self;
         let mut id = Self::ZERO;
         let mut i = 0;
