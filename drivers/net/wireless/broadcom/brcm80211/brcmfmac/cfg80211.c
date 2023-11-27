@@ -7090,7 +7090,8 @@ brcmf_init_channel_info_provider(struct brcmf_cfg80211_info *cfg,
 		if (struct_size_t(struct brcmf_chaninfo_list_v1_le, channels,
 				  count) > BRCMF_DCMD_MAXLEN / 2) {
 			bphy_err(cfg, "Chaninfo list was truncated\n");
-			return -ENOMEM;
+			err = -ENOMEM;
+		  goto error;
 		}
 		prov->get_channel_count =
 			brcmf_channel_count_from_chan_info_list;
@@ -7102,19 +7103,21 @@ brcmf_init_channel_info_provider(struct brcmf_cfg80211_info *cfg,
 					BRCMF_DCMD_MEDLEN);
 	if (err) {
 		bphy_err(drvr, "get chanspecs error (%d)\n", err);
-		goto done;
+		goto error;
 	}
 	/* Check the size of result vs structure size */
 	count = brcmf_channel_count_from_chan_info_list(prov);
 	if (struct_size_t(struct brcmf_chanspec_list, element, count) >
 	    BRCMF_DCMD_MEDLEN) {
 		bphy_err(cfg, "Chanspec list was truncated\n");
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto error;
 	}
 	prov->get_channel_count = brcmf_channel_count_from_chanspec_list;
 	prov->get_channel_spec = brcmf_chanspec_from_chanspec_list;
 	prov->get_channel_info = brcmf_chaninfo_from_chanspec_list;
-done:
+	return 0;
+error:
 	kfree(prov->private.buf);
 	return err;
 }
