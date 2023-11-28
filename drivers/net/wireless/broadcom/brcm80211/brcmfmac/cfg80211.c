@@ -7080,6 +7080,8 @@ brcmf_init_channel_info_provider(struct brcmf_cfg80211_info *cfg,
 	if (prov->private.buf == NULL)
 		return -ENOMEM;
 
+	prov->private.cfg = cfg;
+
 	/* Use chan_info_list if it's available */
 	err = brcmf_fil_bsscfg_data_get(ifp, "chan_info_list",
 					prov->private.buf,
