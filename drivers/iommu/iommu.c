@@ -42,7 +42,8 @@
 static struct kset *iommu_group_kset;
 static DEFINE_IDA(iommu_group_ida);
 static DEFINE_IDA(iommu_global_pasid_ida);
-static DEFINE_MUTEX(iommu_probe_device_lock);
+
+DEFINE_MUTEX(iommu_probe_device_lock);
 
 static unsigned int iommu_def_domain_type __read_mostly;
 static bool iommu_dma_strict __read_mostly = IS_ENABLED(CONFIG_IOMMU_DEFAULT_DMA_STRICT);
@@ -485,8 +486,6 @@ static void iommu_deinit_device(struct device *dev)
 	module_put(ops->owner);
 	dev_iommu_free(dev);
 }
-
-DEFINE_MUTEX(iommu_probe_device_lock);
 
 static int __iommu_probe_device(struct device *dev,
 				struct iommu_fwspec *caller_fwspec,
