@@ -1465,7 +1465,7 @@ static const struct snd_soc_dapm_route macaudio_dapm_routes[] = {
 	{ "PCM0 RX", NULL, "Headset Capture" },
 
 	/* Sense paths */
-	{ "PCM2 RX", NULL, "Speaker Sense Capture" },	
+	{ "PCM2 RX", NULL, "Speaker Sense Capture" },
 };
 
 /*	enable	amp		speakers	stereo	gain	safe_vol */
