@@ -1099,7 +1099,7 @@ static int macaudio_add_pin_routes(struct snd_soc_card *card, struct snd_soc_com
 		if (component->name_prefix) {
 			snprintf(buf, sizeof(buf) - 1, "%s OUT", component->name_prefix);
 			r->source = buf;
-		}	
+		}
 		r->sink = "Speaker";
 	} else {
 		r = &routes[nroutes++];
