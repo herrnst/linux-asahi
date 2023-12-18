@@ -479,12 +479,11 @@ static void iommu_deinit_device(struct device *dev)
 	dev_iommu_free(dev);
 }
 
-DEFINE_MUTEX(iommu_probe_device_lock);
-
 static int __iommu_probe_device(struct device *dev, struct list_head *group_list)
 {
 	const struct iommu_ops *ops = dev->bus->iommu_ops;
 	struct iommu_group *group;
+	static DEFINE_MUTEX(iommu_probe_device_lock);
 	struct group_device *gdev;
 	int ret;
 
@@ -497,15 +496,17 @@ static int __iommu_probe_device(struct device *dev, struct list_head *group_list
 	 * probably be able to use device_lock() here to minimise the scope,
 	 * but for now enforcing a simple global ordering is fine.
 	 */
-	lockdep_assert_held(&iommu_probe_device_lock);
+	mutex_lock(&iommu_probe_device_lock);
 
 	/* Device is probed already if in a group */
-	if (dev->iommu_group)
-		return 0;
+	if (dev->iommu_group) {
+		ret = 0;
+		goto out_unlock;
+	}
 
 	ret = iommu_init_device(dev, ops);
 	if (ret)
-		return ret;
+		goto out_unlock;
 
 	group = dev->iommu_group;
 	gdev = iommu_group_alloc_device(group, dev);
@@ -541,6 +542,7 @@ static int __iommu_probe_device(struct device *dev, struct list_head *group_list
 			list_add_tail(&group->entry, group_list);
 	}
 	mutex_unlock(&group->mutex);
+	mutex_unlock(&iommu_probe_device_lock);
 
 	if (dev_is_pci(dev))
 		iommu_dma_set_pci_32bit_workaround(dev);
@@ -554,6 +556,8 @@ err_put_group:
 	iommu_deinit_device(dev);
 	mutex_unlock(&group->mutex);
 	iommu_group_put(group);
+out_unlock:
+	mutex_unlock(&iommu_probe_device_lock);
 
 	return ret;
 }
@@ -563,9 +567,7 @@ int iommu_probe_device(struct device *dev)
 	const struct iommu_ops *ops;
 	int ret;
 
-	mutex_lock(&iommu_probe_device_lock);
 	ret = __iommu_probe_device(dev, NULL);
-	mutex_unlock(&iommu_probe_device_lock);
 	if (ret)
 		return ret;
 
@@ -1781,9 +1783,7 @@ static int probe_iommu_group(struct device *dev, void *data)
 	struct list_head *group_list = data;
 	int ret;
 
-	mutex_lock(&iommu_probe_device_lock);
 	ret = __iommu_probe_device(dev, group_list);
-	mutex_unlock(&iommu_probe_device_lock);
 	if (ret == -ENODEV)
 		ret = 0;
 
