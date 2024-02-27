@@ -12,6 +12,7 @@
 #include <linux/irq.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
+#include <linux/platform_device.h>
 #include <linux/soc/apple/dockchannel.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
