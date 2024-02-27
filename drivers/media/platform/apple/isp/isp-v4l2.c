@@ -849,7 +849,7 @@ int apple_isp_setup_video(struct apple_isp *isp)
 	vbq->mem_ops = &vb2_dma_sg_memops;
 	vbq->buf_struct_size = sizeof(struct isp_buffer);
 	vbq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	vbq->min_buffers_needed = ISP_MIN_FRAMES;
+	vbq->min_queued_buffers = ISP_MIN_FRAMES;
 	vbq->lock = &isp->video_lock;
 
 	err = vb2_queue_init(vbq);
