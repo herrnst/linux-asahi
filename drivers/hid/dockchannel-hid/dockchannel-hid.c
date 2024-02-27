@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/soc/apple/dockchannel.h>
+#include <linux/string.h>
 #include <linux/of.h>
 #include "../hid-ids.h"
 
