@@ -817,7 +817,7 @@ static void dchid_handle_init(struct dockchannel_hid *dchid, void *data, size_t 
 				break;
 			}
 
-			strlcpy(iface->gpio_name, req->name, MAX_GPIO_NAME);
+			strscpy(iface->gpio_name, req->name, MAX_GPIO_NAME);
 			iface->gpio_id = req->id;
 			break;
 		}
