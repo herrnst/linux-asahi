@@ -455,7 +455,7 @@ static int isp_set_preset(struct apple_isp *isp, struct isp_format *fmt,
 	return 0;
 }
 
-struct isp_preset *isp_select_preset(struct apple_isp *isp, u32 width,
+static struct isp_preset *isp_select_preset(struct apple_isp *isp, u32 width,
 				     u32 height)
 {
 	struct isp_preset *preset, *best = &isp->presets[0];
