@@ -42,7 +42,7 @@ static inline void isp_gpio_write32(struct apple_isp *isp, u32 reg, u32 val)
 }
 
 int apple_isp_power_up_domains(struct apple_isp *isp)
-{
+static int apple_isp_power_up_domains(struct apple_isp *isp)
 	int ret;
 
 	if (isp->pds_active)
