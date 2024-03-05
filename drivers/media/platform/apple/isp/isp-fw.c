@@ -3,6 +3,7 @@
 
 #include "isp-fw.h"
 
+#include <asm/io.h>
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
 
