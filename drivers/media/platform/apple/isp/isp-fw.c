@@ -65,7 +65,7 @@ static int apple_isp_power_up_domains(struct apple_isp *isp)
 }
 
 void apple_isp_power_down_domains(struct apple_isp *isp)
-{
+static void apple_isp_power_down_domains(struct apple_isp *isp)
 	int ret;
 
 	if (!isp->pds_active)
