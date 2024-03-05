@@ -6,6 +6,7 @@
 #include <asm/io.h>
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
+#include <linux/types.h>
 
 #include "isp-cmd.h"
 #include "isp-iommu.h"
