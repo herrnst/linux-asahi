@@ -149,6 +149,8 @@ int of_iommu_configure(struct device *dev, struct device_node *master_np,
 					     of_pci_iommu_init, &info);
 	} else {
 		err = of_iommu_configure_device(master_np, dev, id);
+		if (err == -EPROBE_DEFER)
+			iommu_fwspec_free(dev);
 	}
 	mutex_unlock(&iommu_probe_device_lock);
 
