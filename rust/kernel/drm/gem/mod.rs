@@ -75,7 +75,7 @@ unsafe extern "C" fn free_callback<T: DriverObject>(obj: *mut bindings::drm_gem_
     // SAFETY: All of our objects are allocated via Box<>, and we're in the
     // free callback which guarantees this object has zero remaining references,
     // so we can drop it
-    unsafe { Box::from_raw(this) };
+    unsafe { drop(Box::from_raw(this)) };
 }
 
 unsafe extern "C" fn open_callback<T: BaseDriverObject<U>, U: BaseObject>(
