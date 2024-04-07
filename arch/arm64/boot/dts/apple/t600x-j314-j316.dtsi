@@ -24,6 +24,7 @@
 		disp0_piodma = &disp0_piodma;
 		nvram = &nvram;
 		serial0 = &serial0;
+		sio = &sio;
 		wifi0 = &wifi0;
 	};
 
@@ -112,6 +113,10 @@
 	mux-control-names = "dp-xbar";
 	mux-index = <0>;
 	apple,dptx-phy = <3>;
+};
+
+&dpaudio1 {
+	status = "okay";
 };
 
 &atcphy3 {
