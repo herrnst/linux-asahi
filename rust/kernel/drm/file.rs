@@ -57,7 +57,7 @@ pub(super) unsafe extern "C" fn postclose_callback<T: DriverFile>(
     let file = unsafe { &*raw_file };
 
     // Drop the DriverFile
-    unsafe { Box::from_raw(file.driver_priv as *mut T) };
+    unsafe { drop(Box::from_raw(file.driver_priv as *mut T)) };
 }
 
 impl<T: DriverFile> File<T> {
