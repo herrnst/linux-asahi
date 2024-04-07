@@ -99,7 +99,7 @@ unsafe extern "C" fn free_job_cb<T: JobImpl>(sched_job: *mut bindings::drm_sched
 
     // Convert the job back to a Box and drop it
     // SAFETY: All of our Job<T>s are created inside a box.
-    unsafe { Box::from_raw(p) };
+    unsafe { drop(Box::from_raw(p)) };
 }
 
 /// A DRM scheduler job.
