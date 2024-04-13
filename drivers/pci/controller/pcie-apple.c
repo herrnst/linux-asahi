@@ -674,6 +674,7 @@ static int apple_pcie_setup_port(struct apple_pcie *pcie,
 {
 	struct platform_device *platform = to_platform_device(pcie->dev);
 	struct apple_pcie_port *port;
+	struct resource *res;
 	u32 link_stat, idx;
 	int ret, i;
 	char name[16];
@@ -692,16 +693,21 @@ static int apple_pcie_setup_port(struct apple_pcie *pcie,
 	port->np = np;
 
 	snprintf(name, sizeof(name), "port%d", port->idx);
-	port->base = devm_platform_ioremap_resource_byname(platform, name);
-	if (IS_ERR(port->base))
+	res = platform_get_resource_byname(platform, IORESOURCE_MEM, name);
+	if (res) {
+		port->base = devm_ioremap_resource(&platform->dev, res);
+	} else {
 		port->base = devm_platform_ioremap_resource(platform, port->idx + 2);
+	}
 	if (IS_ERR(port->base)) {
 		return PTR_ERR(port->base);
 	}
 
 	snprintf(name, sizeof(name), "phy%d", port->idx);
-	port->phy = devm_platform_ioremap_resource_byname(platform, name);
-	if (IS_ERR(port->phy))
+	res = platform_get_resource_byname(platform, IORESOURCE_MEM, name);
+	if (res)
+		port->phy = devm_ioremap_resource(&platform->dev, res);
+	else
 		port->phy = pcie->base + CORE_PHY_DEFAULT_BASE(port->idx);
 
 	/* link might be already brought up by u-boot, skip setup then */
