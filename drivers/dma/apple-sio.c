@@ -787,6 +787,10 @@ static int sio_probe(struct platform_device *pdev)
 	int nchannels;
 	int err, i;
 
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(42));
+	if (err)
+		return dev_err_probe(&pdev->dev, err, "Failed to set DMA mask\n");
+
 	err = of_property_read_u32(np, "dma-channels", &nchannels);
 	if (err || nchannels > NCHANNELS_MAX)
 		return dev_err_probe(&pdev->dev, -EINVAL,
