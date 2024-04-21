@@ -372,6 +372,17 @@
 			iommus = <&disp0_dart 4>;
 			phandle = <&disp0_piodma>;
 		};
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			port@0 {
+				reg = <0>;
+				dcp_audio: endpoint {
+					remote-endpoint = <&dpaudio0_dcp>;
+				};
+			};
+		};
 	};
 
 	display: display-subsystem {
@@ -585,6 +596,27 @@
 		iommus = <&sio_dart 2>;
 		power-domains = <&ps_sio_adma>;
 		resets = <&ps_audio_p>;
+	};
+
+	dpaudio0: audio-controller@39b500000 {
+		compatible = "apple,t6020-dpaudio", "apple,dpaudio";
+		reg = <0x3 0x9b500000 0x0 0x4000>;
+		dmas = <&sio 0x64>;
+		dma-names = "tx";
+		power-domains = <&ps_dpa0>;
+		reset-domains = <&ps_dpa0>;
+		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			port@0 {
+				reg = <0>;
+				dpaudio0_dcp: endpoint {
+					remote-endpoint = <&dcp_audio>;
+				};
+			};
+		};
 	};
 
 	mca: mca@39b600000 {
