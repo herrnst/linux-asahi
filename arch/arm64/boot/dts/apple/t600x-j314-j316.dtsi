@@ -24,9 +24,7 @@
 		disp0_piodma = &disp0_piodma;
 		nvram = &nvram;
 		serial0 = &serial0;
-#ifdef TEST_DPAUDIO
 		sio = &sio;
-#endif
 		wifi0 = &wifi0;
 	};
 
@@ -101,9 +99,6 @@
 &dcpext0 {
 	/* enabled by the loader */
 	apple,connector-type = "HDMI-A";
-#ifdef TEST_DPAUDIO
-	apple,audio-xmitter = <&dpaudio1>;
-#endif
 
 	/*  HDMI HPD gpio, used as interrupt*/
 	hdmi-hpd-gpios = <&pinctrl_nub 15 GPIO_ACTIVE_HIGH>;
@@ -120,15 +115,9 @@
 	apple,dptx-phy = <3>;
 };
 
-#ifdef TEST_DPAUDIO
-&sio {
-	status = "okay";
-};
-
 &dpaudio1 {
 	status = "okay";
 };
-#endif
 
 &atcphy3 {
 	apple,mode-fixed-dp;
