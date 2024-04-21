@@ -24,7 +24,10 @@
 
 &dcp {
 	apple,connector-type = "HDMI-A";
-	apple,audio-xmitter = <&dpaudio0>;
+};
+
+&dpaudio0 {
+	status = "okay";
 };
 
 &bluetooth0 {
