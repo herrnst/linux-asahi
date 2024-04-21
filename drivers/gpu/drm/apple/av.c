@@ -258,8 +258,10 @@ EXPORT_SYMBOL_GPL(dcp_audiosrv_get_product_attrs);
 static int av_audiosrv_report(struct apple_epic_service *service, u32 idx,
 						  const void *data, size_t data_size)
 {
-	dev_info(service->ep->dcp->dev, "got audio report %d size %zx\n", idx, data_size);
-	print_hex_dump(KERN_INFO, "audio report: ", DUMP_PREFIX_NONE, 16, 1, data, data_size, true);
+	dev_dbg(service->ep->dcp->dev, "got audio report %d size %zx\n", idx, data_size);
+#ifdef DEBUG
+	print_hex_dump(KERN_DEBUG, "audio report: ", DUMP_PREFIX_NONE, 16, 1, data, data_size, true);
+#endif
 
 	return 0;
 }
