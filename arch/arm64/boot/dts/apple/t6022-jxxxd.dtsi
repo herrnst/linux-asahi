@@ -13,6 +13,7 @@
 	aliases {
 		dcpext4 = &dcpext0_die1;
 		disp0 = &display;
+		sio = &sio_die1;
 	};
 };
 
@@ -33,6 +34,10 @@
 };
 
 &dcpext0_mbox_die1 {
+	status = "okay";
+};
+
+&dpaudio1_die1 {
 	status = "okay";
 };
 
