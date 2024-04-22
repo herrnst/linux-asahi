@@ -18,11 +18,16 @@
 	aliases {
 		atcphy4 = &atcphy0_die1;
 		atcphy5 = &atcphy1_die1;
+		/delete-property/ sio;
 	};
 };
 
-&dpaudio0 {
-	status = "okay";
+&sio {
+        status = "disabled";
+};
+
+&sio_die1 {
+        status = "disabled";
 };
 
 &sound {
