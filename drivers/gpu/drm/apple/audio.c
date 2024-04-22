@@ -556,7 +556,6 @@ static int dcpaud_comp_bind(struct device *dev, struct device *main, void *data)
 		dev_info(dev, "No DP/HDMI audio device not ready\n");
 		return 0;
 	}
-	dev_info(dev, "Audio: dcp pdev: 0x%llx\n", (u64)dcp_pdev);
 	dcpaud->dcp_dev = &dcp_pdev->dev;
 
 	ret = snd_card_new(dev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
