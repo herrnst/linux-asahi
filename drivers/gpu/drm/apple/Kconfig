@@ -14,6 +14,7 @@ config DRM_APPLE
 
 config DRM_APPLE_AUDIO
 	bool "DisplayPort/HDMI Audio support"
+	default y
 	depends on DRM_APPLE
 	depends on SND
 	select SND_PCM

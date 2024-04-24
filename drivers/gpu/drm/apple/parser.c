@@ -121,6 +121,7 @@ static int skip(struct dcp_parse_ctx *handle)
 	}
 }
 
+#if IS_ENABLED(CONFIG_DRM_APPLE_AUDIO)
 static int skip_pair(struct dcp_parse_ctx *handle)
 {
 	int ret;
@@ -153,6 +154,7 @@ static bool consume_string(struct dcp_parse_ctx *ctx, const char *specimen)
 	skip(ctx);
 	return true;
 }
+#endif
 
 /* Caller must free the result */
 static char *parse_string(struct dcp_parse_ctx *handle)
@@ -203,6 +205,7 @@ static int parse_bool(struct dcp_parse_ctx *handle, bool *b)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_DRM_APPLE_AUDIO)
 static int parse_blob(struct dcp_parse_ctx *handle, size_t size, u8 const **blob)
 {
 	const struct dcp_parse_tag *tag = parse_tag_of_type(handle, DCP_TYPE_BLOB);
@@ -222,6 +225,7 @@ static int parse_blob(struct dcp_parse_ctx *handle, size_t size, u8 const **blob
 	*blob = out;
 	return 0;
 }
+#endif
 
 struct iterator {
 	struct dcp_parse_ctx *handle;
