@@ -496,6 +496,7 @@
 		iommus = <&DIE_NODE(sio_dart_0) 0>, <&DIE_NODE(sio_dart_1) 0>;
 		power-domains = <&DIE_NODE(ps_sio_cpu)>;
 		resets = <&DIE_NODE(ps_sio)>; /* TODO: verify reset does something */
+		status = "disabled";
 	};
 
 	DIE_NODE(dpaudio1): audio-controller@39b504000 {
