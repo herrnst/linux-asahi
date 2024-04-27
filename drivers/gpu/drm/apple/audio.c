@@ -32,8 +32,6 @@
 #define DCPAUD_ELEMENTS_MAXSIZE		16384
 #define DCPAUD_PRODUCTATTRS_MAXSIZE	1024
 
-#define DRV_NAME "dcp-hdmi-audio"
-
 struct dcp_audio {
 	struct device *dev;
 	struct device *dcp_dev;
@@ -717,7 +715,7 @@ static const struct of_device_id dcpaud_of_match[] = {
 
 static struct platform_driver dcpaud_driver = {
 	.driver = {
-		.name = DRV_NAME,
+		.name = "dcp-dp-audio",
 		.of_match_table      = dcpaud_of_match,
 	},
 	.probe		= dcpaud_probe,

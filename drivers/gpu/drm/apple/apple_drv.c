@@ -588,6 +588,12 @@ static int add_dcp_components(struct device *dev,
 				if (!port)
 					continue;
 
+#if !IS_ENABLED(CONFIG_DRM_APPLE_AUDIO)
+				if (of_device_is_compatible(port, "apple,dpaudio")) {
+					of_node_put(port);
+					continue;
+				}
+#endif
 				if (of_device_is_available(port))
 					drm_of_component_match_add(dev, matchptr,
 							   component_compare_of,
