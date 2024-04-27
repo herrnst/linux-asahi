@@ -338,7 +338,6 @@ int avep_init(struct apple_dcp *dcp)
 		dev_info(dev, "No DP/HDMI audio device not ready\n");
 		return 0;
 	}
-	dev_info(dev, "AV: audio pdev: 0x%llx\n", (u64)audio_pdev);
 	dcp->audiosrv->audio_dev = audio_pdev;
 
 	dev_link = device_link_add(&audio_pdev->dev, dev,
