@@ -99,7 +99,7 @@ config APPLE_SIO
 	depends on ARCH_APPLE || COMPILE_TEST
 	depends on APPLE_RTKIT
 	select DMA_ENGINE
-	default ARCH_APPLE
+	default m if ARCH_APPLE
 	help
 	  Enable support for the SIO coprocessor found on Apple Silicon SoCs
 	  where it provides DMA services.
