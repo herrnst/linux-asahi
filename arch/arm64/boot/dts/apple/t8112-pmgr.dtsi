@@ -456,7 +456,6 @@
 		#reset-cells = <0>;
 		label = "dpa1";
 		power-domains = <&ps_audio_p>;
-		apple,always-on; /* critical block */
 	};
 
 	ps_mca0: power-controller@2c0 {
