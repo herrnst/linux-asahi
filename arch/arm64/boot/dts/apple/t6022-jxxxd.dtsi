@@ -13,16 +13,8 @@
 	aliases {
 		dcpext4 = &dcpext0_die1;
 		disp0 = &display;
-		/delete-property/ sio;
+		sio1 = &sio_die1;
 	};
-};
-
-&sio {
-        status = "disabled";
-};
-
-&sio_die1 {
-        status = "disabled";
 };
 
 &lpdptxphy_die1 {
@@ -60,6 +52,10 @@
 	phy-names = "dp-phy";
 	apple,dptx-phy = <4>;
 	apple,dptx-die = <1>;
+};
+
+&dpaudio1_die1 {
+	status = "okay";
 };
 
 /* delete missing dcp0/disp0 */
