@@ -890,6 +890,7 @@
 			iommus = <&sio_dart 0>;
 			power-domains = <&ps_sio_cpu>;
 			resets = <&ps_sio>; /* TODO: verify reset does something */
+			status = "disabled";
 		};
 
 		admac: dma-controller@238200000 {
