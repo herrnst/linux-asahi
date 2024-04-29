@@ -661,7 +661,8 @@ static void dcpaud_comp_unbind(struct device *dev, struct device *main,
 {
 	struct dcp_audio *dcpaud = dev_get_drvdata(dev);
 
-	snd_card_free(dcpaud->card);
+	/* snd_card_free_when_closed() checks for NULL */
+	snd_card_free_when_closed(dcpaud->card);
 }
 
 static const struct component_ops dcpaud_comp_ops = {
