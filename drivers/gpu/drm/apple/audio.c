@@ -446,7 +446,7 @@ static int dcpaud_create_pcm(struct dcp_audio *dcpaud)
 
 	pcm->nonatomic = true;
 	pcm->private_data = dcpaud;
-	strcpy(pcm->name, card->shortname);
+	strscpy(pcm->name, card->shortname, sizeof(pcm->name));
 
 	return 0;
 }
@@ -487,9 +487,9 @@ static void dcpaud_set_card_names(struct dcp_audio *dcpaud)
 {
 	struct snd_card *card = dcpaud->card;
 
-	strcpy(card->driver, "apple_dcp");
-	strcpy(card->longname, "Apple DisplayPort");
-	strcpy(card->shortname, "Apple DisplayPort");
+	strscpy(card->driver, "apple_dcp", sizeof(card->driver));
+	strscpy(card->longname, "Apple DisplayPort", sizeof(card->longname));
+	strscpy(card->shortname, "Apple DisplayPort", sizeof(card->shortname));
 }
 
 static int dcpaud_init_snd_card(struct dcp_audio *dcpaud)
