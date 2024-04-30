@@ -26,6 +26,10 @@
 	};
 };
 
+&sio {
+        status = "disabled";
+};
+
 &framebuffer0 {
 	power-domains = <&ps_dispext0_cpu0_die1>, <&ps_dptx_phy_ps_die1>;
 };
