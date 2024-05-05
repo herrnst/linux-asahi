@@ -52,6 +52,10 @@ pub struct Registration<T: DriverOps> {
     concrete_reg: UnsafeCell<T::RegType>,
 }
 
+// SAFETY: The only action allowed in a `Registration` instance is dropping it, so it is safe to
+// share references to it with multiple threads as nothing else can be done.
+unsafe impl<T: DriverOps> Send for Registration<T> {}
+
 // SAFETY: `Registration` has no fields or methods accessible via `&Registration`, so it is safe to
 // share references to it with multiple threads as nothing can be done.
 unsafe impl<T: DriverOps> Sync for Registration<T> {}
