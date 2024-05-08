@@ -172,6 +172,7 @@ impl Node {
             false
         }
         #[cfg(CONFIG_OF)]
+        // SAFETY: `raw_node` is valid per the type invariant
         unsafe {
             bindings::of_node_is_root(self.raw_node)
         }
