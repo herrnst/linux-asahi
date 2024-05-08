@@ -163,10 +163,11 @@ impl<const SIZE: usize> IoMem<SIZE> {
         }
 
         // Try to map the resource.
-        // SAFETY: Just mapping the memory range.
         let addr = if res.flags & (bindings::IORESOURCE_MEM_NONPOSTED as core::ffi::c_ulong) != 0 {
+            // SAFETY: Just mapping the memory range.
             unsafe { bindings::ioremap_np(res.offset, res.size as _) }
         } else {
+            // SAFETY: Just mapping the memory range.
             unsafe { bindings::ioremap(res.offset, res.size as _) }
         };
 
