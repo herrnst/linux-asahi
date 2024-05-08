@@ -8,6 +8,10 @@ config RUST_DRM_GEM_SHMEM_HELPER
 	bool
 	select DRM_GEM_SHMEM_HELPER
 
+config RUST_DRM_GPUVM
+	bool
+	select DRM_GPUVM
+
 config RUST_APPLE_RTKIT
 	bool
 	select APPLE_RTKIT
@@ -23,6 +27,7 @@ config DRM_ASAHI
 	select IOMMU_SUPPORT
 	select IOMMU_IO_PGTABLE_LPAE
 	select RUST_DRM_GEM_SHMEM_HELPER
+	select RUST_DRM_GPUVM
 	select RUST_APPLE_RTKIT
 	help
 	  DRM driver for Apple AGX GPUs (G13x, found in the M1 SoC family)
