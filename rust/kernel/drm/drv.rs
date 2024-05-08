@@ -40,6 +40,8 @@ pub const FEAT_SYNCOBJ: u32 = bindings::drm_driver_feature_DRIVER_SYNCOBJ;
 /// Driver supports the timeline flavor of DRM sync objects for explicit synchronization of command
 /// submission.
 pub const FEAT_SYNCOBJ_TIMELINE: u32 = bindings::drm_driver_feature_DRIVER_SYNCOBJ_TIMELINE;
+/// Driver uses the GEM GPUVA manager.
+pub const FEAT_GEM_GPUVA: u32 = bindings::drm_driver_feature_DRIVER_GEM_GPUVA;
 
 /// Information data for a DRM Driver.
 pub struct DriverInfo {
