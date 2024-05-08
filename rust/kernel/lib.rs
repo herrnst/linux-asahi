@@ -22,6 +22,7 @@
 #![feature(receiver_trait)]
 #![feature(type_alias_impl_trait)]
 #![feature(unsize)]
+#![warn(clippy::undocumented_unsafe_blocks)]
 
 // Ensure conditional compilation based on the kernel configuration works;
 // otherwise we may silently break things like initcall handling.
