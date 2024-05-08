@@ -136,7 +136,7 @@ fn caller_lock_class_inner() -> Result<&'static DynLockClassKey> {
             .is_err()
         {
             // SAFETY: We just got this pointer from `into_raw()`
-            unsafe { Box::from_raw(raw) };
+            unsafe { drop(Box::from_raw(raw)) };
         }
 
         ptr = slot.load(Ordering::Relaxed);
