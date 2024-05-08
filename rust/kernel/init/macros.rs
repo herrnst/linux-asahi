@@ -513,6 +513,8 @@ macro_rules! __pinned_drop {
             }
         ),
     ) => {
+        #[allow(clippy::undocumented_unsafe_blocks)]
+        // FIXME
         unsafe $($impl_sig)* {
             // Inherit all attributes and the type/ident tokens for the signature.
             $(#[$($attr)*])*
@@ -850,11 +852,15 @@ macro_rules! __pin_data {
             {
                 type PinData = __ThePinData<$($ty_generics)*>;
 
+                #[allow(clippy::undocumented_unsafe_blocks)]
+                // FIXME
                 unsafe fn __pin_data() -> Self::PinData {
                     __ThePinData { __phantom: ::core::marker::PhantomData }
                 }
             }
 
+            #[allow(clippy::undocumented_unsafe_blocks)]
+            // FIXME
             unsafe impl<$($impl_generics)*>
                 $crate::init::__internal::PinData for __ThePinData<$($ty_generics)*>
             where $($whr)*
@@ -980,6 +986,8 @@ macro_rules! __pin_data {
                     slot: *mut $p_type,
                     init: impl $crate::init::PinInit<$p_type, E>,
                 ) -> ::core::result::Result<(), E> {
+                    #[allow(clippy::undocumented_unsafe_blocks)]
+                    // FIXME
                     unsafe { $crate::init::PinInit::__pinned_init(init, slot) }
                 }
             )*
@@ -990,6 +998,8 @@ macro_rules! __pin_data {
                     slot: *mut $type,
                     init: impl $crate::init::Init<$type, E>,
                 ) -> ::core::result::Result<(), E> {
+                    #[allow(clippy::undocumented_unsafe_blocks)]
+                    // FIXME
                     unsafe { $crate::init::Init::__init(init, slot) }
                 }
             )*
@@ -1104,6 +1114,8 @@ macro_rules! __init_internal {
         // no possibility of returning without `unsafe`.
         struct __InitOk;
         // Get the data about fields from the supplied type.
+        #[allow(clippy::undocumented_unsafe_blocks)]
+        // FIXME
         let data = unsafe {
             use $crate::init::__internal::$has_data;
             // Here we abuse `paste!` to retokenize `$t`. Declarative macros have some internal
@@ -1159,6 +1171,7 @@ macro_rules! __init_internal {
         let init = move |slot| -> ::core::result::Result<(), $err> {
             init(slot).map(|__InitOk| ())
         };
+        #[allow(clippy::undocumented_unsafe_blocks)]
         let init = unsafe { $crate::init::$construct_closure::<_, $err>(init) };
         init
     }};
@@ -1307,6 +1320,7 @@ macro_rules! __init_internal {
         // Endpoint, nothing more to munch, create the initializer.
         // Since we are in the closure that is never called, this will never get executed.
         // We abuse `slot` to get the correct type inference here:
+        #[allow(clippy::undocumented_unsafe_blocks)]
         unsafe {
             // Here we abuse `paste!` to retokenize `$t`. Declarative macros have some internal
             // information that is associated to already parsed fragments, so a path fragment
