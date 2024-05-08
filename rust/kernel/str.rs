@@ -306,7 +306,7 @@ impl CStr {
     /// ```
     #[inline]
     pub unsafe fn as_str_unchecked(&self) -> &str {
-        // SAFETY: TODO.
+        // SAFETY: Depends on the above safety contract
         unsafe { core::str::from_utf8_unchecked(self.as_bytes()) }
     }
 
