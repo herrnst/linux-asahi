@@ -69,10 +69,10 @@ impl CStr {
     /// Returns the length of this string with `NUL`.
     #[inline]
     pub const fn len_with_nul(&self) -> usize {
-        // SAFETY: This is one of the invariant of `CStr`.
-        // We add a `unreachable_unchecked` here to hint the optimizer that
-        // the value returned from this function is non-zero.
         if self.0.is_empty() {
+            // SAFETY: This is one of the invariant of `CStr`.
+            // We add a `unreachable_unchecked` here to hint the optimizer that
+            // the value returned from this function is non-zero.
             unsafe { core::hint::unreachable_unchecked() };
         }
         self.0.len()
@@ -208,6 +208,7 @@ impl CStr {
     /// ```
     #[inline]
     pub unsafe fn as_str_unchecked(&self) -> &str {
+        // SAFETY: Depends on the above safety contract
         unsafe { core::str::from_utf8_unchecked(self.as_bytes()) }
     }
 
