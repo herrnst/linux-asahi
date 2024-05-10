@@ -16,7 +16,7 @@
 extern "C" {
 #endif
 
-#define DRM_ASAHI_UNSTABLE_UABI_VERSION		10010
+#define DRM_ASAHI_UNSTABLE_UABI_VERSION		10011
 
 #define DRM_ASAHI_GET_PARAMS			0x00
 #define DRM_ASAHI_VM_CREATE			0x01
@@ -55,8 +55,9 @@ struct drm_asahi_params_global {
 	__u32 pad1;
 	__u64 vm_user_start;
 	__u64 vm_user_end;
-	__u64 vm_shader_start;
-	__u64 vm_shader_end;
+	__u64 vm_usc_start;
+	__u64 vm_usc_end;
+	__u64 vm_kernel_min_size;
 
 	__u32 max_syncs_per_submission;
 	__u32 max_commands_per_submission;
@@ -103,6 +104,12 @@ struct drm_asahi_get_params {
 struct drm_asahi_vm_create {
 	/** @extensions: Pointer to the first extension struct, if any */
 	__u64 extensions;
+
+	/** @kernel_start: Start of the kernel-reserved address range */
+	__u64 kernel_start;
+
+	/** @kernel_end: End of the kernel-reserved address range */
+	__u64 kernel_end;
 
 	/** @value: Returned VM ID */
 	__u32 vm_id;
@@ -344,6 +351,8 @@ struct drm_asahi_cmd_render {
 	__u64 flags;
 
 	__u64 encoder_ptr;
+	__u64 vertex_usc_base;
+	__u64 fragment_usc_base;
 
 	__u64 vertex_attachments;
 	__u64 fragment_attachments;
@@ -434,7 +443,6 @@ struct drm_asahi_cmd_render {
 	__u32 depth_dimensions;
 	__u32 isp_bgobjdepth;
 	__u32 isp_bgobjvals;
-
 };
 
 #define ASAHI_RENDER_UNK_UNK1			(1UL << 0)
@@ -508,6 +516,7 @@ struct drm_asahi_cmd_compute {
 
 	__u64 encoder_ptr;
 	__u64 encoder_end;
+	__u64 usc_base;
 
 	__u64 attachments;
 	__u32 attachment_count;
