@@ -316,8 +316,7 @@ impl File {
         let ualloc = Arc::pin_init(Mutex::new(alloc::DefaultAllocator::new(
             device,
             &vm,
-            VM_DRV_GPU_START,
-            VM_DRV_GPU_END,
+            VM_DRV_GPU_START..VM_DRV_GPU_END,
             buffer::PAGE_SIZE,
             mmu::PROT_GPU_SHARED_RW,
             512 * 1024,
@@ -328,8 +327,7 @@ impl File {
         let ualloc_priv = Arc::pin_init(Mutex::new(alloc::DefaultAllocator::new(
             device,
             &vm,
-            VM_DRV_GPUFW_START,
-            VM_DRV_GPUFW_END,
+            VM_DRV_GPUFW_START..VM_DRV_GPUFW_END,
             buffer::PAGE_SIZE,
             mmu::PROT_GPU_FW_PRIV_RW,
             64 * 1024,
