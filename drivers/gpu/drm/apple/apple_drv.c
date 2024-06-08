@@ -331,7 +331,7 @@ static int apple_probe_per_dcp(struct device *dev,
 
 	// HACK:
 	if (dcp_ext)
-		connector->base.fwnode = fwnode_handle_get(dev->fwnode);
+		connector->base.fwnode = fwnode_handle_get(dcp->dev.fwnode);
 
 	ret = drm_connector_init(drm, &connector->base, &apple_connector_funcs,
 				 dcp_get_connector_type(dcp));
