@@ -1528,13 +1528,11 @@
 			power-domains = <&ps_dispext_cpu0>;
 			resets = <&ps_dispext_cpu0>;
 			clocks = <&clk_dispext0>;
-			apple,asc-dram-mask = <0x0 0x0>;
 			apple,dcp-index = <1>;
 			status = "disabled";
 
-			dispext0_piodma: piodma {
+			piodma {
 				iommus = <&dispext0_dart 4>;
-				phandle = <&dispext0_piodma>;
 			};
 
 			ports {
