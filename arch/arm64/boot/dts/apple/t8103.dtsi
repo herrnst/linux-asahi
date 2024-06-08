@@ -1333,9 +1333,8 @@
 			apple,asc-dram-mask = <0xf 0x00000000>;
 			status = "disabled";
 
-			dispext0_piodma: piodma {
+			piodma {
 				iommus = <&dispext0_dart 4>;
-				phandle = <&dispext0_piodma>;
 			};
 
 			ports {
