@@ -1809,6 +1809,9 @@ static int atcphy_dpphy_set_mode(struct phy *phy, enum phy_mode mode,
 {
 	struct apple_atcphy *atcphy = phy_get_drvdata(phy);
 
+	if (!atcphy->dp_only)
+		return 0;
+
 	dev_info(atcphy->dev, "%s(mode=%u, submode=%d)\n", __func__, mode, submode);
 
 	switch (mode) {
