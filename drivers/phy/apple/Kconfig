@@ -1,15 +1,17 @@
 # SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 config PHY_APPLE_ATC
 	tristate "Apple Type-C PHY"
-	depends on ARCH_APPLE || COMPILE_TEST
+	depends on (ARM64 && ARCH_APPLE) || (COMPILE_TEST && !GENERIC_ATOMIC64)
 	default ARCH_APPLE
 	select GENERIC_PHY
-	depends on USB_SUPPORT
-	depends on TYPEC
+	select TYPEC
+	select APPLE_TUNABLE
 	help
-	  Enable this to add support for the Apple Type-C PHY, switch
-	  and mux found in Apple SoCs such as the M1.
-	  This driver currently provides support for USB2 and USB3.
+	  Enable this to add support for the Apple Type-C PHY found in
+	  Apple Silicon M-series SoCs. This PHY supports USB2,
+	  USB3, USB4, Thunderbolt, and DisplayPort.
+
+	  If M is selected the module will be called 'phy-apple-atc'.
 
 config PHY_APPLE_DPTX
 	tristate "Apple DPTX PHY"
