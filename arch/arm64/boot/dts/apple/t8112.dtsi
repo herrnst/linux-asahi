@@ -1105,7 +1105,7 @@
 			status = "disabled"; /* only used on j473 */
                };
 
-		nub_spmi: spmi@23d0d9300 {
+		nub_spmi: spmi@23d714000 {
 			compatible = "apple,t8112-spmi", "apple,spmi";
 			reg = <0x2 0x3d714000 0x0 0x100>;
 			#address-cells = <2>;
