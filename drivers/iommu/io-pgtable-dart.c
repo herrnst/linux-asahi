@@ -463,6 +463,7 @@ out_free_data:
 static void apple_dart_free_pgtables(struct dart_io_pgtable *data, dart_iopte *ptep, int level)
 {
 	dart_iopte *end;
+	dart_iopte *start = ptep;
 
 	if (level > 1) {
 		end = (void *)ptep + DART_GRANULE(data);
@@ -474,7 +475,7 @@ static void apple_dart_free_pgtables(struct dart_io_pgtable *data, dart_iopte *p
 				apple_dart_free_pgtables(data, iopte_deref(pte, data), level - 1);
 		}
 	}
-	free_pages((unsigned long)ptep, get_order(DART_GRANULE(data)));
+	free_pages((unsigned long)start, get_order(DART_GRANULE(data)));
 }
 
 static void apple_dart_free_pgtable(struct io_pgtable *iop)
