@@ -75,10 +75,9 @@ struct drm_asahi_params_global {
 	__u32 firmware_version[4];
 };
 
-/*
 enum drm_asahi_feat_compat {
+	DRM_ASAHI_FEAT_SOFT_FAULTS = (1UL) << 0,
 };
-*/
 
 enum drm_asahi_feat_incompat {
 	DRM_ASAHI_FEAT_MANDATORY_ZS_COMPRESSION = (1UL) << 0,
