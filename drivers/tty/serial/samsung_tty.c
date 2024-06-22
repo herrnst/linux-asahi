@@ -2082,7 +2082,7 @@ static void s3c24xx_serial_remove(struct platform_device *dev)
 	struct uart_port *port = s3c24xx_dev_to_port(&dev->dev);
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
 
-	if (port)
+	if (port) {
 		pm_runtime_get_sync(&dev->dev);
 		uart_remove_one_port(&s3c24xx_uart_drv, port);
 
@@ -2093,6 +2093,7 @@ static void s3c24xx_serial_remove(struct platform_device *dev)
 		pm_runtime_disable(&dev->dev);
 		pm_runtime_set_suspended(&dev->dev);
 		pm_runtime_put_noidle(&dev->dev);
+	}
 
 	uart_unregister_driver(&s3c24xx_uart_drv);
 }
