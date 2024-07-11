@@ -88,18 +88,16 @@ impl SyncItem {
                 let fence = if out {
                     None
                 } else {
-                    Some(
-                        syncobj
-                            .fence_get()
-                            .ok_or_else(|| {
-                                cls_pr_debug!(
-                                    Errors,
-                                    "Failed to get fence from timeline sync object\n"
-                                );
-                                EINVAL
-                            })?
-                            .chain_find_seqno(data.timeline_value)?,
-                    )
+                    syncobj
+                        .fence_get()
+                        .ok_or_else(|| {
+                            cls_pr_debug!(
+                                Errors,
+                                "Failed to get fence from timeline sync object\n"
+                            );
+                            EINVAL
+                        })?
+                        .chain_find_seqno(data.timeline_value)?
                 };
 
                 Ok(SyncItem {
