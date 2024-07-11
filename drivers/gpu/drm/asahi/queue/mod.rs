@@ -574,6 +574,12 @@ impl Queue for Queue::ver {
 
         mod_dev_dbg!(self.dev, "[Submission {}] Creating job\n", id);
 
+        // FIXME: I think this can violate the fence seqno ordering contract.
+        // If we have e.g. a render submission with no barriers and then a compute submission
+        // with no barriers, it's possible for the compute submission to complete first, and
+        // therefore its fence. Maybe we should have separate fence contexts for render
+        // and compute, and then do a ? (Vert+frag should be fine since there is no vert
+        // without frag, and frag always serializes.)
         let fence: UserFence<JobFence::ver> = self
             .fence_ctx
             .new_fence::<JobFence::ver>(
@@ -616,7 +622,9 @@ impl Queue for Queue::ver {
             in_syncs.len()
         );
         for sync in in_syncs {
-            job.add_dependency(sync.fence.expect("in_sync missing fence"))?;
+            if let Some(fence) = sync.fence {
+                job.add_dependency(fence)?;
+            }
         }
 
         let mut last_render = None;
