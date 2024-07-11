@@ -124,7 +124,7 @@ static int macsmc_hwmon_read_key(struct apple_smc *smc,
 
 	switch (sensor->info.type_code) {
 	/* 32-bit IEEE 754 float */
-	case _SMC_KEY("flt "): {
+	case __SMC_KEY('f', 'l', 't', ' '): {
 		u32 flt_ = 0;
 
 		ret = apple_smc_read_f32_scaled(smc, sensor->macsmc_key, &flt_,
@@ -133,7 +133,7 @@ static int macsmc_hwmon_read_key(struct apple_smc *smc,
 		break;
 	}
 	/* 48.16 fixed point decimal */
-	case _SMC_KEY("ioft"): {
+	case __SMC_KEY('i', 'o', 'f', 't'): {
 		u64 ioft = 0;
 
 		ret = apple_smc_read_ioft_scaled(smc, sensor->macsmc_key, &ioft,
