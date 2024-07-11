@@ -270,8 +270,10 @@ impl<T: JobImpl> Entity<T> {
     /// Create a new job on this entity.
     ///
     /// The entity must outlive the pending job until it transitions into the submitted state,
-    /// after which the scheduler owns it.
-    pub fn new_job(&self, credits: u32, inner: T) -> Result<PendingJob<'_, T>> {
+    /// after which the scheduler owns it. Since jobs must be submitted in creation order,
+    /// this requires a mutable reference to the entity, ensuring that only one new job can be
+    /// in flight at once.
+    pub fn new_job(&mut self, credits: u32, inner: T) -> Result<PendingJob<'_, T>> {
         let mut job: Box<MaybeUninit<Job<T>>> = Box::try_new_zeroed()?;
 
         // SAFETY: We hold a reference to the entity (which is a valid pointer),
