@@ -38,7 +38,8 @@ pub trait RawDmaFence: crate::private::Sealed {
 
     /// Advances this fence to the chain node which will signal this sequence number.
     /// If no sequence number is provided, this returns `self` again.
-    fn chain_find_seqno(self, seqno: u64) -> Result<Fence>
+    /// If the seqno has already been signaled, returns None.
+    fn chain_find_seqno(self, seqno: u64) -> Result<Option<Fence>>
     where
         Self: Sized,
     {
@@ -53,10 +54,10 @@ pub trait RawDmaFence: crate::private::Sealed {
             unsafe { bindings::dma_fence_put(ptr) };
             Err(Error::from_errno(ret))
         } else if ptr.is_null() {
-            Err(EINVAL) // When can this happen?
+            Ok(None)
         } else {
             // SAFETY: ptr is valid and non-NULL as checked above.
-            Ok(unsafe { Fence::from_raw(ptr) })
+            Ok(Some(unsafe { Fence::from_raw(ptr) }))
         }
     }
 
