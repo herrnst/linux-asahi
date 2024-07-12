@@ -448,13 +448,16 @@ static void macsmc_hwmon_populate_fan_configs(u32 *configs,
 	configs[idx + 1] = 0;
 }
 
+static const struct hwmon_channel_info * const macsmc_chip_channel_info =
+	HWMON_CHANNEL_INFO(chip, HWMON_C_REGISTER_TZ);
+
 static int macsmc_hwmon_create_infos(struct macsmc_hwmon *hwmon)
 {
 	int i = 0;
 	struct hwmon_channel_info *channel_info;
 
 	/* chip */
-	hwmon->channel_infos[i++] = HWMON_CHANNEL_INFO(chip, HWMON_C_REGISTER_TZ);
+	hwmon->channel_infos[i++] = macsmc_chip_channel_info;
 
 	if (hwmon->temp.n_sensors) {
 		channel_info = &hwmon->temp.channel_info;
