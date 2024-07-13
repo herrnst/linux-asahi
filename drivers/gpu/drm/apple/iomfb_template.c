@@ -289,7 +289,7 @@ static struct dcp_map_buf_resp dcpep_cb_map_piodma(struct apple_dcp *dcp,
 	return (struct dcp_map_buf_resp){ .dva = memdesc->dva };
 
 reject:
-	dev_err(dcp->dev, "denying map of invalid buffer %llx for pidoma\n",
+	dev_err(dcp->dev, "denying map of invalid buffer %llx for piodma\n",
 		req->buffer);
 	return (struct dcp_map_buf_resp){ .ret = EINVAL };
 }
