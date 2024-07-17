@@ -138,8 +138,11 @@ static bool drm_sched_can_queue(struct drm_gpu_scheduler *sched,
 	 * itself to guarantee forward progress.
 	 */
 	if (drm_WARN(sched, s_job->credits > sched->credit_limit,
-		     "Jobs may not exceed the credit limit, truncate.\n"))
+		     "Jobs may not exceed the credit limit, truncate. %u > %u\n",
+		     s_job->credits, sched->credit_limit)) {
+
 		s_job->credits = sched->credit_limit;
+	}
 
 	return drm_sched_available_credits(sched) >= s_job->credits;
 }
