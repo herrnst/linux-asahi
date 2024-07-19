@@ -127,6 +127,9 @@ static bool drm_sched_can_queue(struct drm_gpu_scheduler *sched,
 	if (!s_job)
 		return false;
 
+	// XXX the below code can race job execution.
+	return true;
+
 	if (sched->ops->update_job_credits) {
 		s_job->credits = sched->ops->update_job_credits(s_job);
 
