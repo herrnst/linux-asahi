@@ -333,4 +333,4 @@ struct prctl_mm_map {
 # define PR_SET_MEM_MODEL_DEFAULT	0
 # define PR_SET_MEM_MODEL_TSO		1
 
-endif /* _LINUX_PRCTL_H */
+#endif /* _LINUX_PRCTL_H */
