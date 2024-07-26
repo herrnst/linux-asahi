@@ -131,7 +131,7 @@ TRACE_EVENT(atcphy_dp_configure,
 	    TP_STRUCT__entry(__string(devname, dev_name(atcphy->dev))
 				     __field(enum atcphy_dp_link_rate, lr)),
 
-	    TP_fast_assign(__assign_str(devname, dev_name(atcphy->dev));
+	    TP_fast_assign(__assign_str(devname);
 	     		  __entry->lr = lr;),
 
 	    TP_printk("%s: link rate: %s", __get_str(devname),
