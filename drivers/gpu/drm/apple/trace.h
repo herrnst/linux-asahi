@@ -116,7 +116,7 @@ TRACE_EVENT(
 				 __field(u8, endpoint) __field(u16, size)
 					 __field(u16, tag)),
 
-	TP_fast_assign(__assign_str(devname, dev_name(ep->dcp->dev));
+	TP_fast_assign(__assign_str(devname);
 		       __entry->endpoint = ep->endpoint; __entry->size = size;
 		       __entry->tag = tag;),
 
@@ -134,7 +134,7 @@ DECLARE_EVENT_CLASS(afk_rwptr_template,
 				     __field(u8, endpoint) __field(u32, rptr)
 					     __field(u32, wptr)),
 
-	    TP_fast_assign(__assign_str(devname, dev_name(ep->dcp->dev));
+	    TP_fast_assign(__assign_str(devname);
 			   __entry->endpoint = ep->endpoint;
 			   __entry->rptr = rptr; __entry->wptr = wptr;),
 
@@ -166,7 +166,7 @@ TRACE_EVENT(
 					 __field(u32, magic)
 						 __field(u32, size)),
 
-	TP_fast_assign(__assign_str(devname, dev_name(ep->dcp->dev));
+	TP_fast_assign(__assign_str(devname);
 		       __entry->endpoint = ep->endpoint; __entry->rptr = rptr;
 		       __entry->magic = magic; __entry->size = size;),
 
@@ -188,7 +188,7 @@ TRACE_EVENT(
 					 __field(u16, subtype)
 						 __field(u16, tag)),
 
-	TP_fast_assign(__assign_str(devname, dev_name(ep->dcp->dev));
+	TP_fast_assign(__assign_str(devname);
 		       __entry->endpoint = ep->endpoint;
 		       __entry->channel = channel; __entry->type = type;
 		       __entry->data_size = data_size;
