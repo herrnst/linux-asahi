@@ -2,6 +2,7 @@
 /* Copyright 2023 Eileen Yoon <eyn@gmx.com> */
 
 #include <linux/iommu.h>
+#include <linux/vmalloc.h>
 
 #include "isp-iommu.h"
 
