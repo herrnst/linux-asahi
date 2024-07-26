@@ -482,7 +482,6 @@ unsafe impl AsBytes for str {}
 unsafe impl<T: AsBytes> AsBytes for [T] {}
 unsafe impl<T: AsBytes, const N: usize> AsBytes for [T; N] {}
 
-
 /// A trait for boolean types.
 ///
 /// This is meant to be used in type states to allow boolean constraints in implementation blocks.
