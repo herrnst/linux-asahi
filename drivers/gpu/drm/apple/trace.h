@@ -357,7 +357,7 @@ TRACE_EVENT(dptxport_init, TP_PROTO(struct apple_dcp *dcp, u64 unit),
 	    TP_STRUCT__entry(__string(devname, dev_name(dcp->dev))
 				     __field(u64, unit)),
 
-	    TP_fast_assign(__assign_str(devname, dev_name(dcp->dev));
+	    TP_fast_assign(__assign_str(devname);
 			   __entry->unit = unit;),
 
 	    TP_printk("%s: dptxport unit %lld initialized", __get_str(devname),
@@ -371,7 +371,7 @@ TRACE_EVENT(
 	TP_STRUCT__entry(__string(devname, dev_name(dptx->service->ep->dcp->dev))
 			__field(u32, unit) __field(int, idx) __field(size_t, len)),
 
-	TP_fast_assign(__assign_str(devname, dev_name(dptx->service->ep->dcp->dev));
+	TP_fast_assign(__assign_str(devname);
 		       __entry->unit = dptx->unit; __entry->idx = idx; __entry->len = len;),
 
 	TP_printk("%s: dptx%d: AP Call %d (%s) with len %lu", __get_str(devname),
@@ -386,7 +386,7 @@ TRACE_EVENT(
 	TP_STRUCT__entry(__string(devname, dev_name(dptx->service->ep->dcp->dev))
 			 __field(u32, unit) __field(u8, core) __field(u8, atc) __field(u8, die)),
 
-	TP_fast_assign(__assign_str(devname, dev_name(dptx->service->ep->dcp->dev));
+	TP_fast_assign(__assign_str(devname);
 		       __entry->unit = dptx->unit; __entry->core = core; __entry->atc = atc; __entry->die = die;),
 
 	TP_printk("%s: dptx%d: core %d, atc %d, die %d", __get_str(devname),
@@ -400,7 +400,7 @@ TRACE_EVENT(
 	TP_STRUCT__entry(__string(devname, dev_name(dptx->service->ep->dcp->dev))
 			 __field(u32, unit) __field(u8, core) __field(u8, atc) __field(u8, die)),
 
-	TP_fast_assign(__assign_str(devname, dev_name(dptx->service->ep->dcp->dev));
+	TP_fast_assign(__assign_str(devname);
 		       __entry->unit = dptx->unit; __entry->core = core; __entry->atc = atc; __entry->die = die;),
 
 	TP_printk("%s: dptx%d: core %d, atc %d, die %d", __get_str(devname),
@@ -415,7 +415,7 @@ TRACE_EVENT(
 			 __field(u32, unit)
 			 __field(u32, link_rate)),
 
-	TP_fast_assign(__assign_str(devname, dev_name(dptx->service->ep->dcp->dev));
+	TP_fast_assign(__assign_str(devname);
 		       __entry->unit = dptx->unit;
 		       __entry->link_rate = link_rate;),
 
