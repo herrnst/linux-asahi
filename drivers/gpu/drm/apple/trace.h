@@ -84,7 +84,7 @@ TRACE_EVENT(dcp_recv_msg,
 			     __field(u8, endpoint)
 			     __field(u64, message)),
 
-	    TP_fast_assign(__assign_str(devname, dev_name(dcp->dev));
+	    TP_fast_assign(__assign_str(devname);
 			   __entry->endpoint = endpoint;
 			   __entry->message = message;),
 
@@ -100,7 +100,7 @@ TRACE_EVENT(dcp_send_msg,
 			     __field(u8, endpoint)
 			     __field(u64, message)),
 
-	    TP_fast_assign(__assign_str(devname, dev_name(dcp->dev));
+	    TP_fast_assign(__assign_str(devname);
 			   __entry->endpoint = endpoint;
 			   __entry->message = message;),
 
@@ -216,7 +216,7 @@ TRACE_EVENT(iomfb_callback,
 			),
 
 	    TP_fast_assign(
-				__assign_str(devname, dev_name(dcp->dev));
+				__assign_str(devname);
 				__entry->tag = tag; __entry->name = name;
 			),
 
@@ -237,8 +237,8 @@ TRACE_EVENT(iomfb_push,
 				__field(int, depth)),
 
 	    TP_fast_assign(
-				__assign_str(devname, dev_name(dcp->dev));
-				__assign_str(name, method->name);
+				__assign_str(devname);
+				__assign_str(name);
 				__entry->context = context; __entry->offset = offset;
 				__entry->depth = depth;
 			),
