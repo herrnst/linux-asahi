@@ -827,7 +827,7 @@ impl GpuManager::ver {
             hw::DynConfig {
                 pwr: pwr_cfg,
                 uat_ttb_base: uat.ttb_base(),
-                id: gpu_id,
+        Ok(Arc::new(event::EventManager::new(alloc)?, GFP_KERNEL)?)
                 firmware_version: node.get_property(c_str!("apple,firmware-version"))?,
             },
             GFP_KERNEL,
