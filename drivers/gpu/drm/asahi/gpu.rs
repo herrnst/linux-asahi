@@ -668,17 +668,20 @@ impl GpuManager::ver {
         let event_manager_clone = event_manager.clone();
         let buffer_mgr_clone = buffer_mgr.clone();
         let alloc_ref = &mut alloc;
-        let rx_channels = Box::init(try_init!(RxChannels::ver {
-            event: channel::EventChannel::ver::new(
-                dev,
-                alloc_ref,
-                event_manager_clone,
-                buffer_mgr_clone,
-            )?,
-            fw_log: channel::FwLogChannel::new(dev, alloc_ref)?,
-            ktrace: channel::KTraceChannel::new(dev, alloc_ref)?,
-            stats: channel::StatsChannel::ver::new(dev, alloc_ref)?,
-        }))?;
+        let rx_channels = Box::init(
+            try_init!(RxChannels::ver {
+                event: channel::EventChannel::ver::new(
+                    dev,
+                    alloc_ref,
+                    event_manager_clone,
+                    buffer_mgr_clone,
+                )?,
+                fw_log: channel::FwLogChannel::new(dev, alloc_ref)?,
+                ktrace: channel::KTraceChannel::new(dev, alloc_ref)?,
+                stats: channel::StatsChannel::ver::new(dev, alloc_ref)?,
+            }),
+            GFP_KERNEL,
+        )?;
 
         let alloc_ref = &mut alloc;
         let tx_channels = Box::init(try_init!(TxChannels::ver {
