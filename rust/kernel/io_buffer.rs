@@ -4,6 +4,7 @@
 
 //! Buffers used in IO.
 
+use crate::alloc::{flags::*, vec_ext::VecExt};
 use crate::error::Result;
 use alloc::vec::Vec;
 use core::mem::{size_of, MaybeUninit};
@@ -31,8 +32,11 @@ pub trait IoBufferReader {
     ///
     /// Returns `EFAULT` if the address does not currently point to mapped, readable memory.
     fn read_all(&mut self) -> Result<Vec<u8>> {
-        let mut data = Vec::<u8>::new();
-        data.try_resize(self.len(), 0)?;
+        let mut data = Vec::<u8>::with_capacity(self.len(), GFP_KERNEL)?;
+        // FIXME? data.resize(self.len(), 0);
+        for _ in 0..self.len() {
+            data.push(0, GFP_KERNEL)?
+        }
 
         // SAFETY: The output buffer is valid as we just allocated it.
         unsafe { self.read_raw(data.as_mut_ptr(), data.len())? };
