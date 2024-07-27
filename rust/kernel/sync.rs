@@ -24,7 +24,7 @@ pub use lock::spinlock::{new_spinlock, SpinLock};
 pub use lockdep::{LockClassKey, StaticLockClassKey};
 pub use locked_by::LockedBy;
 
-impl Default for LockClassKey {
+impl Default for StaticLockClassKey {
     fn default() -> Self {
         Self::new()
     }
