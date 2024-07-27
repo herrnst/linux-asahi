@@ -5,6 +5,7 @@
 //! C header: [`include/linux/device.h`](../../../../include/linux/device.h)
 
 use crate::{
+    alloc::flags::*,
     bindings,
     error::Result,
     macros::pin_data,
@@ -276,11 +277,14 @@ impl<T, U, V> Data<T, U, V> {
         name: &'static CStr,
         key1: LockClassKey,
     ) -> Result<Pin<UniqueArc<Self>>> {
-        let ret = UniqueArc::pin_init(pin_init!(Self {
-            registrations <- Mutex::new_with_key(registrations, name, key1),
-            resources,
-            general,
-        }))?;
+        let ret = UniqueArc::pin_init(
+            pin_init!(Self {
+                registrations <- Mutex::new_with_key(registrations, name, key1),
+                resources,
+                general,
+            }),
+            GFP_KERNEL,
+        )?;
         Ok(ret)
     }
 
