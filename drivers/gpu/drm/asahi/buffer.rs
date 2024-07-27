@@ -591,11 +591,13 @@ impl Buffer::ver {
                 // priv seems to work and might be faster?
                 // Needs to be FW-writable anyway, so ualloc
                 // won't work.
-                let buf =
-                    Arc::try_new(inner.ualloc_priv.lock().array_empty_tagged(
+                let buf = Arc::new(
+                    inner.ualloc_priv.lock().array_empty_tagged(
                         (tpc_size + mmu::UAT_PGMSK) & !mmu::UAT_PGMSK,
                         b"TPC ",
-                    )?)?;
+                    )?,
+                    GFP_KERNEL,
+                )?;
                 inner.tpc = Some(buf.clone());
                 buf
             }
