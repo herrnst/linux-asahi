@@ -133,7 +133,7 @@ impl<'a> InitDataBuilder::ver<'a> {
                 )?;
 
                 for (j, scale) in curve_cfg.t3_scales.iter().enumerate() {
-                    t3[j].try_push(
+                    t3[j].push(
                         (t3_coef as u64 * 1000000100 * *scale as u64 / (f_khz * v_max * 6))
                             .try_into()
                             .unwrap(),
