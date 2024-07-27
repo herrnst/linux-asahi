@@ -6,6 +6,7 @@
 //!
 //! C header: [`include/linux/moduleparam.h`](../../../include/linux/moduleparam.h)
 
+use crate::alloc::{flags::*, vec_ext::VecExt};
 use crate::error::{code::*, from_result};
 use crate::str::{CStr, Formatter};
 use core::fmt::Write;
@@ -481,7 +482,7 @@ impl ModuleParam for StringParam {
         arg.and_then(|arg| {
             if slab_available {
                 let mut vec = alloc::vec::Vec::new();
-                vec.try_extend_from_slice(arg).ok()?;
+                vec.extend_from_slice(arg, GFP_KERNEL).ok()?;
                 Some(StringParam::Owned(vec))
             } else {
                 Some(StringParam::Ref(arg))
