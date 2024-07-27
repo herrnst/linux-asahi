@@ -5,6 +5,7 @@
 //! C header: [`include/drm/drm_mm.h`](../../../../include/drm/drm_mm.h)
 
 use crate::{
+    alloc::{box_ext::BoxExt, flags::*},
     bindings,
     error::{to_result, Result},
     sync::{Arc, Mutex, UniqueArc},
@@ -167,7 +168,10 @@ impl<A: AllocInner<T>, T> Allocator<A, T> {
     #[track_caller]
     pub fn new(start: u64, size: u64, inner: A) -> Result<Allocator<A, T>> {
         // SAFETY: We call `Mutex::init_lock` below.
-        let mm = UniqueArc::pin_init(Mutex::new(MmInner(Opaque::uninit(), inner, PhantomData)))?;
+        let mm = UniqueArc::pin_init(
+            Mutex::new(MmInner(Opaque::uninit(), inner, PhantomData)),
+            GFP_KERNEL,
+        )?;
 
         // SAFETY: The Opaque instance provides a valid pointer, and it is initialized after
         // this call.
@@ -218,14 +222,17 @@ impl<A: AllocInner<T>, T> Allocator<A, T> {
         end: u64,
         mode: InsertMode,
     ) -> Result<Node<A, T>> {
-        let mut mm_node = Box::try_new(NodeData {
-            // SAFETY: This C struct should be zero-initialized.
-            node: unsafe { core::mem::zeroed() },
-            valid: false,
-            inner: node,
-            mm: self.mm.clone(),
-            _pin: PhantomPinned,
-        })?;
+        let mut mm_node = Box::new(
+            NodeData {
+                // SAFETY: This C struct should be zero-initialized.
+                node: unsafe { core::mem::zeroed() },
+                valid: false,
+                inner: node,
+                mm: self.mm.clone(),
+                _pin: PhantomPinned,
+            },
+            GFP_KERNEL,
+        )?;
 
         let guard = self.mm.lock();
         // SAFETY: We hold the lock and all pointers are valid.
@@ -257,14 +264,17 @@ impl<A: AllocInner<T>, T> Allocator<A, T> {
         size: u64,
         color: usize,
     ) -> Result<Node<A, T>> {
-        let mut mm_node = Box::try_new(NodeData {
-            // SAFETY: This C struct should be zero-initialized.
-            node: unsafe { core::mem::zeroed() },
-            valid: false,
-            inner: node,
-            mm: self.mm.clone(),
-            _pin: PhantomPinned,
-        })?;
+        let mut mm_node = Box::new(
+            NodeData {
+                // SAFETY: This C struct should be zero-initialized.
+                node: unsafe { core::mem::zeroed() },
+                valid: false,
+                inner: node,
+                mm: self.mm.clone(),
+                _pin: PhantomPinned,
+            },
+            GFP_KERNEL,
+        )?;
 
         mm_node.node.start = start;
         mm_node.node.size = size;
