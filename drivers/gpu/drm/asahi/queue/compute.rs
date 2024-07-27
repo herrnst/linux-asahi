@@ -124,7 +124,10 @@ impl super::QueueInner::ver {
             ev_comp.value.next(),
         );
 
-        let timestamps = Arc::try_new(kalloc.shared.new_default::<fw::job::JobTimestamps>()?)?;
+        let timestamps = Arc::new(
+            kalloc.shared.new_default::<fw::job::JobTimestamps>()?,
+            GFP_KERNEL,
+        )?;
 
         let uuid = cmdbuf.cmd_id;
 
