@@ -137,6 +137,7 @@ impl<'a> InitDataBuilder::ver<'a> {
                         (t3_coef as u64 * 1000000100 * *scale as u64 / (f_khz * v_max * 6))
                             .try_into()
                             .unwrap(),
+                        GFP_KERNEL,
                     )?;
                 }
             }
