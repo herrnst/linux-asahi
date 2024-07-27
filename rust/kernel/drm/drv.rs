@@ -5,6 +5,7 @@
 //! C header: [`include/drm/drm_drv.h`](../../../../include/drm/drm_drv.h)
 
 use crate::{
+    alloc::{box_ext::BoxExt, flags::*},
     bindings, device, drm,
     error::code::*,
     error::from_err_ptr,
@@ -240,7 +241,7 @@ impl<T: Driver> Registration<T> {
     ///
     /// It is allowed to move.
     pub fn new(parent: &dyn device::RawDevice) -> Result<Self> {
-        let vtable = Pin::new(Box::try_new(Self::VTABLE)?);
+        let vtable = Pin::new(Box::new(Self::VTABLE, GFP_KERNEL)?);
         // SAFETY: Safe to call at any time (with valid args)
         let raw_drm = unsafe { bindings::drm_dev_alloc(&*vtable, parent.raw_device()) };
         let raw_drm = NonNull::new(from_err_ptr(raw_drm)? as *mut _).ok_or(ENOMEM)?;
