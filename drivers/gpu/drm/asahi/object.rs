@@ -269,7 +269,7 @@ impl<T: GpuStruct, U: Allocation<T>> GpuObject<T, U> {
             raw: p,
             gpu_ptr,
             alloc,
-            inner: Box::try_new(inner)?,
+            inner: Box::new(inner, GFP_KERNEL)?,
         })
     }
 
@@ -331,7 +331,7 @@ impl<T: GpuStruct, U: Allocation<T>> GpuObject<T, U> {
             &'a mut MaybeUninit<T::Raw<'a>>,
         ) -> Result<&'a mut T::Raw<'a>>,
     ) -> Result<Self> {
-        GpuObject::<T, U>::new_boxed(alloc, Box::try_new(inner)?, callback)
+        GpuObject::<T, U>::new_boxed(alloc, Box::new(inner, GFP_KERNEL)?, callback)
     }
 
     /// Create a new GpuObject given an allocator and the boxed inner data (a type implementing
@@ -366,7 +366,7 @@ impl<T: GpuStruct, U: Allocation<T>> GpuObject<T, U> {
             raw: p as *mut u8 as *mut T::Raw<'static>,
             gpu_ptr,
             alloc,
-            inner: Box::init(inner)?,
+            inner: Box::init(inner, GFP_KERNEL)?,
         };
         let q = &*ret.inner as *const T;
         // SAFETY: `p` is guaranteed to be valid per the Allocation invariant.

@@ -47,7 +47,7 @@ impl Builder {
         let p: *const T = &op;
         let p: *const u8 = p as *const u8;
         let s: &[u8] = unsafe { core::slice::from_raw_parts(p, core::mem::size_of::<T>()) };
-        self.ops.try_extend_from_slice(s)?;
+        self.ops.extend_from_slice(s, GFP_KERNEL)?;
         Ok(off as i32)
     }
 
