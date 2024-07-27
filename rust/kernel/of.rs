@@ -13,6 +13,7 @@ use core::marker::PhantomData;
 use core::num::NonZeroU32;
 
 use crate::{
+    alloc::flags::*,
     bindings, driver,
     driver::RawDeviceId,
     prelude::*,
@@ -398,7 +399,7 @@ impl<'a, T: PropertyUnit> TryFrom<Property<'a>> for Vec<T> {
         let mut v = Vec::new();
         let val = p.value();
         for off in (0..p.len()).step_by(T::UNIT_SIZE) {
-            v.try_push(T::from_bytes(&val[off..off + T::UNIT_SIZE])?)?;
+            v.push(T::from_bytes(&val[off..off + T::UNIT_SIZE])?, GFP_KERNEL)?;
         }
         Ok(v)
     }
