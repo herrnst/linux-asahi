@@ -17,6 +17,7 @@
 
 use core::ops::{Deref, DerefMut};
 use kernel::{
+    alloc::{flags::*, vec_ext::VecExt},
     error::{code::*, Result},
     prelude::*,
     str::CStr,
@@ -154,12 +155,15 @@ impl<T: SlotItem> SlotAllocator<T> {
             drop_count: 0,
         };
 
-        let alloc = Arc::pin_init(pin_init!(SlotAllocatorOuter {
-            // SAFETY: `mutex_init!` is called below.
-            inner <- Mutex::new_with_key(inner, name, lock_key1),
-            // SAFETY: `condvar_init!` is called below.
-            cond <- CondVar::new(name, lock_key2),
-        }))?;
+        let alloc = Arc::pin_init(
+            pin_init!(SlotAllocatorOuter {
+                // SAFETY: `mutex_init!` is called below.
+                inner <- Mutex::new_with_key(inner, name, lock_key1),
+                // SAFETY: `condvar_init!` is called below.
+                cond <- CondVar::new(name, lock_key2),
+            }),
+            GFP_KERNEL,
+        )?;
 
         Ok(SlotAllocator(alloc))
     }
