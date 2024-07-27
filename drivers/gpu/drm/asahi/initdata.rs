@@ -16,6 +16,7 @@ use crate::fw::initdata::*;
 use crate::fw::types::*;
 use crate::{driver::AsahiDevice, gem, gpu, hw, mmu};
 use alloc::vec::Vec;
+use kernel::alloc::{box_ext::BoxExt, flags::*, vec_ext::VecExt};
 use kernel::error::{Error, Result};
 use kernel::macros::versions;
 use kernel::{init, init::Init, try_init};
@@ -908,6 +909,6 @@ impl<'a> InitDataBuilder::ver<'a> {
                 })
             },
         )?;
-        Ok(Box::try_new(obj)?)
+        Ok(Box::new(obj, GFP_KERNEL)?)
     }
 }
