@@ -10,6 +10,7 @@ pub mod shmem;
 use alloc::boxed::Box;
 
 use crate::{
+    alloc::flags::*,
     bindings,
     drm::{device, drv, file},
     error::{to_result, Result},
