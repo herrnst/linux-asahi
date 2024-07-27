@@ -490,11 +490,14 @@ impl GpuManager::ver {
             .zip(&mgr.pipes.frag)
             .zip(&mgr.pipes.comp)
         {
-            p_pipes.try_push(fw::initdata::raw::PipeChannels::ver {
-                vtx: v.lock().to_raw(),
-                frag: f.lock().to_raw(),
-                comp: c.lock().to_raw(),
-            })?;
+            p_pipes.push(
+                fw::initdata::raw::PipeChannels::ver {
+                    vtx: v.lock().to_raw(),
+                    frag: f.lock().to_raw(),
+                    comp: c.lock().to_raw(),
+                },
+                GFP_KERNEL,
+            )?;
         }
 
         mgr.as_mut()
@@ -532,7 +535,7 @@ impl GpuManager::ver {
                     raw.sgx_sram_ptr = U64(mapping.iova());
                 });
 
-            mgr.as_mut().io_mappings_mut().try_push(mapping)?;
+            mgr.as_mut().io_mappings_mut().push(mapping, GFP_KERNEL)?;
         }
 
         let mgr = Arc::from(mgr);
@@ -601,7 +604,10 @@ impl GpuManager::ver {
         #[ver(G < G14X)]
         let map_kernel_to_user = false;
 
-        Ok(Box::try_new(mmu::Uat::new(dev, cfg, map_kernel_to_user)?)?)
+        Ok(Box::new(
+            mmu::Uat::new(dev, cfg, map_kernel_to_user)?,
+            GFP_KERNEL,
+        )?)
     }
 
     /// Actually create the final GpuManager instance, as a UniqueArc.
@@ -624,18 +630,36 @@ impl GpuManager::ver {
         };
 
         for _i in 0..=NUM_PIPES - 1 {
-            pipes.vtx.try_push(Box::pin_init(Mutex::new_named(
-                channel::PipeChannel::ver::new(dev, &mut alloc)?,
-                c_str!("pipe_vtx"),
-            ))?)?;
-            pipes.frag.try_push(Box::pin_init(Mutex::new_named(
-                channel::PipeChannel::ver::new(dev, &mut alloc)?,
-                c_str!("pipe_frag"),
-            ))?)?;
-            pipes.comp.try_push(Box::pin_init(Mutex::new_named(
-                channel::PipeChannel::ver::new(dev, &mut alloc)?,
-                c_str!("pipe_comp"),
-            ))?)?;
+            pipes.vtx.push(
+                Box::pin_init(
+                    Mutex::new_named(
+                        channel::PipeChannel::ver::new(dev, &mut alloc)?,
+                        c_str!("pipe_vtx"),
+                    ),
+                    GFP_KERNEL,
+                )?,
+                GFP_KERNEL,
+            )?;
+            pipes.frag.push(
+                Box::pin_init(
+                    Mutex::new_named(
+                        channel::PipeChannel::ver::new(dev, &mut alloc)?,
+                        c_str!("pipe_frag"),
+                    ),
+                    GFP_KERNEL,
+                )?,
+                GFP_KERNEL,
+            )?;
+            pipes.comp.push(
+                Box::pin_init(
+                    Mutex::new_named(
+                        channel::PipeChannel::ver::new(dev, &mut alloc)?,
+                        c_str!("pipe_comp"),
+                    ),
+                    GFP_KERNEL,
+                )?,
+                GFP_KERNEL,
+            )?;
         }
 
         let fwctl_channel = channel::FwCtlChannel::new(dev, &mut alloc)?;
@@ -1182,18 +1206,21 @@ impl GpuManager for GpuManager::ver {
     ) -> Result<Box<dyn queue::Queue>> {
         let mut kalloc = self.alloc();
         let id = self.ids.queue.next();
-        Ok(Box::try_new(queue::Queue::ver::new(
-            &self.dev,
-            vm,
-            &mut kalloc,
-            ualloc,
-            ualloc_priv,
-            self.event_manager.clone(),
-            &self.buffer_mgr,
-            id,
-            priority,
-            caps,
-        )?)?)
+        Ok(Box::new(
+            queue::Queue::ver::new(
+                &self.dev,
+                vm,
+                &mut kalloc,
+                ualloc,
+                ualloc_priv,
+                self.event_manager.clone(),
+                &self.buffer_mgr,
+                id,
+                priority,
+                caps,
+            )?,
+            GFP_KERNEL,
+        )?)
     }
 
     fn kick_firmware(&self) -> Result {
@@ -1357,7 +1384,7 @@ impl GpuManager for GpuManager::ver {
     fn add_completed_work(&self, work: Vec<Box<dyn workqueue::GenSubmittedWork>>) {
         let mut garbage = self.garbage_work.lock();
 
-        if garbage.try_reserve(work.len()).is_err() {
+        if garbage.reserve(work.len(), GFP_KERNEL).is_err() {
             dev_err!(
                 self.dev,
                 "Failed to reserve space for completed work, deadlock possible.\n"
@@ -1367,15 +1394,15 @@ impl GpuManager for GpuManager::ver {
 
         for i in work {
             garbage
-                .try_push(i)
-                .expect("try_push() failed after try_reserve()");
+                .push(i, GFP_KERNEL)
+                .expect("push() failed after reserve()");
         }
     }
 
     fn free_context(&self, ctx: Box<fw::types::GpuObject<fw::workqueue::GpuContextData>>) {
         let mut garbage = self.garbage_contexts.lock();
 
-        if garbage.try_push(ctx).is_err() {
+        if garbage.push(ctx, GFP_KERNEL).is_err() {
             dev_err!(
                 self.dev,
                 "Failed to reserve space for freed context, deadlock possible.\n"

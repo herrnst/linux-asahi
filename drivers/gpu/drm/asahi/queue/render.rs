@@ -395,7 +395,7 @@ impl super::QueueInner::ver {
             );
         }
 
-        let scene = Arc::try_new(buffer.new_scene(kalloc, &tile_info)?)?;
+        let scene = Arc::new(buffer.new_scene(kalloc, &tile_info)?, GFP_KERNEL)?;
 
         let vm_bind = job.vm_bind.clone();
 
@@ -463,7 +463,10 @@ impl super::QueueInner::ver {
         mod_dev_dbg!(self.dev, "[Submission {}] Add Barrier\n", id);
         frag_job.add(barrier, vm_bind.slot())?;
 
-        let timestamps = Arc::try_new(kalloc.shared.new_default::<fw::job::RenderTimestamps>()?)?;
+        let timestamps = Arc::new(
+            kalloc.shared.new_default::<fw::job::RenderTimestamps>()?,
+            GFP_KERNEL,
+        )?;
 
         let unk1 = unks.flags & uapi::ASAHI_RENDER_UNK_UNK1 as u64 != 0;
 
@@ -517,7 +520,7 @@ impl super::QueueInner::ver {
                 }
                 result.result.tvb_size_bytes = buffer.size() as u64;
 
-                Arc::pin_init(new_mutex!(result, "render result"))
+                Arc::pin_init(new_mutex!(result, "render result"), GFP_KERNEL)
             })
             .transpose()?;
 

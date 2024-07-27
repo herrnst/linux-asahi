@@ -8,7 +8,13 @@
 //! information, and starting the GPU firmware coprocessor.
 
 use crate::hw;
-use kernel::{device, io_mem::IoMem, platform, prelude::*};
+use kernel::{
+    alloc::{flags::*, vec_ext::VecExt},
+    device,
+    io_mem::IoMem,
+    platform,
+    prelude::*,
+};
 
 /// Size of the ASC control MMIO region.
 pub(crate) const ASC_CTL_SIZE: usize = 0x4000;
@@ -227,15 +233,15 @@ impl Resources {
         let num_clusters = match gpu_gen {
             4 | 5 => {
                 // G13 | G14G
-                core_mask_regs.try_push(self.sgx_read32(CORE_MASK_0))?;
-                core_mask_regs.try_push(self.sgx_read32(CORE_MASK_1))?;
+                core_mask_regs.push(self.sgx_read32(CORE_MASK_0), GFP_KERNEL)?;
+                core_mask_regs.push(self.sgx_read32(CORE_MASK_1), GFP_KERNEL)?;
                 (id_clusters >> 12) & 0xff
             }
             6 => {
                 // G14X
-                core_mask_regs.try_push(self.sgx_read32(CORE_MASKS_G14X))?;
-                core_mask_regs.try_push(self.sgx_read32(CORE_MASKS_G14X + 4))?;
-                core_mask_regs.try_push(self.sgx_read32(CORE_MASKS_G14X + 8))?;
+                core_mask_regs.push(self.sgx_read32(CORE_MASKS_G14X), GFP_KERNEL)?;
+                core_mask_regs.push(self.sgx_read32(CORE_MASKS_G14X + 4), GFP_KERNEL)?;
+                core_mask_regs.push(self.sgx_read32(CORE_MASKS_G14X + 8), GFP_KERNEL)?;
                 // Clusters per die * num dies
                 ((id_counts_1 >> 8) & 0xff) * ((id_counts_1 >> 16) & 0xf)
             }
@@ -246,7 +252,7 @@ impl Resources {
         };
 
         let mut core_masks_packed = Vec::new();
-        core_masks_packed.try_extend_from_slice(&core_mask_regs)?;
+        core_masks_packed.extend_from_slice(&core_mask_regs, GFP_KERNEL)?;
 
         dev_info!(self.dev, "Core masks: {:#x?}\n", core_masks_packed);
 
@@ -278,7 +284,7 @@ impl Resources {
         let max_core_mask = ((1u64 << num_cores) - 1) as u32;
         for _ in 0..num_clusters {
             let mask = core_mask_regs[0] & max_core_mask;
-            core_masks.try_push(mask)?;
+            core_masks.push(mask, GFP_KERNEL)?;
             for i in 0..core_mask_regs.len() {
                 core_mask_regs[i] >>= num_cores;
                 if i < (core_mask_regs.len() - 1) {

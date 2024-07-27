@@ -627,7 +627,7 @@ impl Drop for HeapAllocation {
 
         alloc.with(|a| {
             if let Some(garbage) = a.garbage.as_mut() {
-                if garbage.try_push(node).is_err() {
+                if garbage.push(node, GFP_KERNEL).is_err() {
                     dev_err!(
                         &a.dev,
                         "HeapAllocation[{}]::drop: Failed to keep garbage\n",
@@ -825,7 +825,7 @@ impl HeapAllocator {
             })?;
 
         self.mm
-            .with_inner(|inner| inner.backing_objects.try_reserve(1))?;
+            .with_inner(|inner| inner.backing_objects.reserve(1, GFP_KERNEL))?;
 
         let mut new_top = self.top + size_aligned as u64;
         if self.cpu_maps {
@@ -859,7 +859,7 @@ impl HeapAllocator {
                 }
             };
 
-            self.guard_nodes.try_push(node)?;
+            self.guard_nodes.push(node, GFP_KERNEL)?;
 
             new_top += guard as u64;
         }
