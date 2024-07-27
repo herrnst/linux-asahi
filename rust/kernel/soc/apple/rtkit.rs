@@ -5,6 +5,7 @@
 //! C header: [`include/linux/soc/apple/rtkit.h`](../../../../include/linux/gpio/driver.h)
 
 use crate::{
+    alloc::{box_ext::BoxExt, flags::*},
     bindings, device,
     error::{code::*, from_err_ptr, from_result, to_result, Result},
     str::CStr,
@@ -148,7 +149,7 @@ unsafe extern "C" fn shmem_setup_callback<T: Operations>(
 
         // Now box the returned buffer type and stash it in the private pointer of the
         // `apple_rtkit_shmem` struct for safekeeping.
-        let boxed = Box::try_new(buf)?;
+        let boxed = Box::new(buf, GFP_KERNEL)?;
         bfr_mut.private = Box::into_raw(boxed) as *mut _;
         Ok(0)
     })
