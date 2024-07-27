@@ -5,7 +5,14 @@
 //! Each bus/subsystem is expected to implement [`DriverOps`], which allows drivers to register
 //! using the [`Registration`] class.
 
-use crate::{error::code::*, error::Result, str::CStr, sync::Arc, ThisModule};
+use crate::{
+    alloc::{box_ext::BoxExt, flags::*},
+    error::code::*,
+    error::Result,
+    str::CStr,
+    sync::Arc,
+    ThisModule,
+};
 use alloc::boxed::Box;
 use core::{cell::UnsafeCell, marker::PhantomData, ops::Deref, pin::Pin};
 
@@ -66,7 +73,7 @@ impl<T: DriverOps> Registration<T> {
     ///
     /// Returns a pinned heap-allocated representation of the registration.
     pub fn new_pinned(name: &'static CStr, module: &'static ThisModule) -> Result<Pin<Box<Self>>> {
-        let mut reg = Pin::from(Box::try_new(Self::new())?);
+        let mut reg = Pin::from(Box::new(Self::new(), GFP_KERNEL)?);
         reg.as_mut().register(name, module)?;
         Ok(reg)
     }
