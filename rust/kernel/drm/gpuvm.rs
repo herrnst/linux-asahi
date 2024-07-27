@@ -7,6 +7,7 @@
 #![allow(missing_docs)]
 
 use crate::{
+    alloc::flags::*,
     bindings,
     drm::{device, drv},
     error::{
@@ -186,11 +187,14 @@ impl<T: DriverGpuVm> GpuVa<T> {
     where
         Error: From<E>,
     {
-        Box::try_pin_init(try_pin_init!(Self {
-            gpuva <- init::zeroed(),
-            inner <- inner,
-            _p: PhantomPinned
-        }))
+        Box::try_pin_init(
+            try_pin_init!(Self {
+                gpuva <- init::zeroed(),
+                inner <- inner,
+                _p: PhantomPinned
+            }),
+            GFP_KERNEL,
+        )
     }
 
     pub fn addr(&self) -> u64 {
@@ -285,11 +289,14 @@ pub(super) unsafe extern "C" fn vm_free_callback<T: DriverGpuVm>(
 
 pub(super) unsafe extern "C" fn vm_bo_alloc_callback<T: DriverGpuVm>() -> *mut bindings::drm_gpuvm_bo
 {
-    let obj: Result<Pin<Box<GpuVmBo<T>>>> = Box::try_pin_init(try_pin_init!(GpuVmBo::<T> {
-        bo <- init::default(),
-        inner <- T::GpuVmBo::new(),
-        _p: PhantomPinned
-    }));
+    let obj: Result<Pin<Box<GpuVmBo<T>>>> = Box::try_pin_init(
+        try_pin_init!(GpuVmBo::<T> {
+            bo <- init::default(),
+            inner <- T::GpuVmBo::new(),
+            _p: PhantomPinned
+        }),
+        GFP_KERNEL,
+    );
 
     match obj {
         Ok(obj) =>
@@ -395,35 +402,38 @@ impl<T: DriverGpuVm> GpuVm<T> {
     where
         Error: From<E>,
     {
-        let obj: Pin<Box<Self>> = Box::try_pin_init(try_pin_init!(Self {
-            // SAFETY: drm_gpuvm_init cannot fail and always initializes the member
-            gpuvm <- unsafe {
-                init::pin_init_from_closure(move |slot: *mut Opaque<bindings::drm_gpuvm> | {
-                    // Zero-init required by drm_gpuvm_init
-                    *slot = Opaque::zeroed();
-                    bindings::drm_gpuvm_init(
-                        Opaque::raw_get(slot),
-                        name.as_char_ptr(),
-                        0,
-                        dev.raw_mut(),
-                        r_obj.gem_obj() as *const _ as *mut _,
-                        range.start,
-                        range.end - range.start,
-                        reserve_range.start,
-                        reserve_range.end - reserve_range.start,
-                        &Self::OPS
-                    );
-                    Ok(())
-                })
-            },
-            // SAFETY: Just passing through to the initializer argument
-            inner <- unsafe {
-                init::pin_init_from_closure(move |slot: *mut UnsafeCell<T> | {
-                    inner.__pinned_init(slot as *mut _)
-                })
-            },
-            _p: PhantomPinned
-        }))?;
+        let obj: Pin<Box<Self>> = Box::try_pin_init(
+            try_pin_init!(Self {
+                // SAFETY: drm_gpuvm_init cannot fail and always initializes the member
+                gpuvm <- unsafe {
+                    init::pin_init_from_closure(move |slot: *mut Opaque<bindings::drm_gpuvm> | {
+                        // Zero-init required by drm_gpuvm_init
+                        *slot = Opaque::zeroed();
+                        bindings::drm_gpuvm_init(
+                            Opaque::raw_get(slot),
+                            name.as_char_ptr(),
+                            0,
+                            dev.raw_mut(),
+                            r_obj.gem_obj() as *const _ as *mut _,
+                            range.start,
+                            range.end - range.start,
+                            reserve_range.start,
+                            reserve_range.end - reserve_range.start,
+                            &Self::OPS
+                        );
+                        Ok(())
+                    })
+                },
+                // SAFETY: Just passing through to the initializer argument
+                inner <- unsafe {
+                    init::pin_init_from_closure(move |slot: *mut UnsafeCell<T> | {
+                        inner.__pinned_init(slot as *mut _)
+                    })
+                },
+                _p: PhantomPinned
+            }),
+            GFP_KERNEL,
+        )?;
 
         // SAFETY: We never move out of the object
         let vm_ref = unsafe {
@@ -445,19 +455,22 @@ impl<T: DriverGpuVm> GpuVm<T> {
         let mut guard = ManuallyDrop::new(LockedGpuVm {
             gpuvm: self,
             // vm_exec needs to be pinned, so stick it in a Box.
-            vm_exec: Box::init(init!(bindings::drm_gpuvm_exec {
-                vm: self.gpuvm() as *mut _,
-                flags: bindings::BINDINGS_DRM_EXEC_INTERRUPTIBLE_WAIT,
-                exec: Default::default(),
-                extra: match (is_ext, obj) {
-                    (true, Some(obj)) => bindings::drm_gpuvm_exec__bindgen_ty_1 {
-                        fn_: Some(exec_lock_gem_object),
-                        priv_: obj.gem_obj() as *const _ as *mut _,
+            vm_exec: Box::init(
+                init!(bindings::drm_gpuvm_exec {
+                    vm: self.gpuvm() as *mut _,
+                    flags: bindings::BINDINGS_DRM_EXEC_INTERRUPTIBLE_WAIT,
+                    exec: Default::default(),
+                    extra: match (is_ext, obj) {
+                        (true, Some(obj)) => bindings::drm_gpuvm_exec__bindgen_ty_1 {
+                            fn_: Some(exec_lock_gem_object),
+                            priv_: obj.gem_obj() as *const _ as *mut _,
+                        },
+                        _ => Default::default(),
                     },
-                    _ => Default::default(),
-                },
-                num_fences: 0,
-            }))?,
+                    num_fences: 0,
+                }),
+                GFP_KERNEL,
+            )?,
             obj,
         });
 
