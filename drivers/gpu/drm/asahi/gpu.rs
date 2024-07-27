@@ -823,6 +823,15 @@ impl GpuManager::ver {
             },
             GFP_KERNEL,
         )?)
+    }
+
+    /// Create the global GPU event manager, and return an `Arc<>` to it.
+    fn make_event_manager(alloc: &mut KernelAllocators) -> Result<Arc<event::EventManager>> {
+        Ok(Arc::new(event::EventManager::new(alloc)?, GFP_KERNEL)?)
+    }
+
+    /// Create a new MMIO mapping and add it to the mappings list in initdata at the specified
+    /// index.
     fn iomap(
         this: &mut Pin<UniqueArc<GpuManager::ver>>,
         cfg: &'static hw::HwConfig,
