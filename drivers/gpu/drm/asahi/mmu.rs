@@ -1029,15 +1029,18 @@ impl Vm {
 
         let mm = mm::Allocator::new(va_range.start, va_range.range(), ())?;
 
-        let binding = Arc::pin_init(Mutex::new_named(
-            VmBinding {
-                binding: None,
-                bind_token: None,
-                active_users: 0,
-                ttb: page_table.cfg().ttbr,
-            },
-            c_str!("VmBinding"),
-        ))?;
+        let binding = Arc::pin_init(
+            Mutex::new_named(
+                VmBinding {
+                    binding: None,
+                    bind_token: None,
+                    active_users: 0,
+                    ttb: page_table.cfg().ttbr,
+                },
+                c_str!("VmBinding"),
+            ),
+            GFP_KERNEL,
+        )?;
 
         let binding_clone = binding.clone();
         Ok(Vm {
