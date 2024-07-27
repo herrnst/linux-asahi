@@ -814,15 +814,6 @@ impl GpuManager::ver {
 
         let node = dev.of_node().ok_or(EIO)?;
 
-        Ok(Box::try_new(hw::DynConfig {
-            pwr: pwr_cfg,
-            uat_ttb_base: uat.ttb_base(),
-            id: gpu_id,
-            firmware_version: node.get_property(c_str!("apple,firmware-version"))?,
-        })?)
-    }
-
-    /// Create the global GPU event manager, and return an `Arc<>` to it.
         Ok(Box::new(
             hw::DynConfig {
                 pwr: pwr_cfg,
