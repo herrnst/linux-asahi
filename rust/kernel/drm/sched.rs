@@ -5,6 +5,7 @@
 //! C header: [`include/drm/gpu_scheduler.h`](../../../../include/drm/gpu_scheduler.h)
 
 use crate::{
+    alloc::{box_ext::BoxExt, flags::*},
     bindings, device,
     dma_fence::*,
     error::{to_result, Result},
@@ -245,7 +246,8 @@ pub struct Entity<T: JobImpl>(Pin<Box<EntityInner<T>>>);
 impl<T: JobImpl> Entity<T> {
     /// Create a new scheduler entity.
     pub fn new(sched: &Scheduler<T>, priority: Priority) -> Result<Self> {
-        let mut entity: Box<MaybeUninit<EntityInner<T>>> = Box::try_new_zeroed()?;
+        let mut entity: Box<MaybeUninit<EntityInner<T>>> =
+            Box::new_uninit(GFP_KERNEL | __GFP_ZERO)?;
 
         let mut sched_ptr = &sched.0.sched as *const _ as *mut _;
 
@@ -274,7 +276,7 @@ impl<T: JobImpl> Entity<T> {
     /// this requires a mutable reference to the entity, ensuring that only one new job can be
     /// in flight at once.
     pub fn new_job(&mut self, credits: u32, inner: T) -> Result<PendingJob<'_, T>> {
-        let mut job: Box<MaybeUninit<Job<T>>> = Box::try_new_zeroed()?;
+        let mut job: Box<MaybeUninit<Job<T>>> = Box::new_uninit(GFP_KERNEL | __GFP_ZERO)?;
 
         // SAFETY: We hold a reference to the entity (which is a valid pointer),
         // and the job object was just allocated above.
@@ -335,7 +337,8 @@ impl<T: JobImpl> Scheduler<T> {
         timeout_ms: usize,
         name: &'static CStr,
     ) -> Result<Scheduler<T>> {
-        let mut sched: UniqueArc<MaybeUninit<SchedulerInner<T>>> = UniqueArc::try_new_uninit()?;
+        let mut sched: UniqueArc<MaybeUninit<SchedulerInner<T>>> =
+            UniqueArc::new_uninit(GFP_KERNEL)?;
 
         // SAFETY: zero sched->sched_rq as drm_sched_init() uses it to exit early withoput initialisation
         // TODO: allocate sched zzeroed instead
