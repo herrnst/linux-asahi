@@ -256,16 +256,19 @@ impl<T: DriverObject> Object<T> {
 
     /// Create a new GEM object.
     pub fn new(dev: &device::Device<T::Driver>, size: usize) -> Result<Pin<UniqueObjectRef<Self>>> {
-        let obj: Pin<Box<Self>> = Box::pin_init(try_pin_init!(Self {
-            // SAFETY: This struct is expected to be zero-initialized
-            obj: bindings::drm_gem_object {
-                funcs: &Self::OBJECT_FUNCS,
-                ..Default::default()
-            },
-            inner <- T::new(dev, size),
-            dev: dev.drm.get(),
-            _p: PhantomPinned
-        }))?;
+        let obj: Pin<Box<Self>> = Box::try_pin_init(
+            try_pin_init!(Self {
+                // SAFETY: This struct is expected to be zero-initialized
+                obj: bindings::drm_gem_object {
+                    funcs: &Self::OBJECT_FUNCS,
+                    ..Default::default()
+                },
+                inner <- T::new(dev, size),
+                dev: dev.drm.get(),
+                _p: PhantomPinned
+            }),
+            GFP_KERNEL,
+        )?;
 
         // SAFETY: Safe to call as long as the pointer is a properly allocated GEM object
         to_result(unsafe {
