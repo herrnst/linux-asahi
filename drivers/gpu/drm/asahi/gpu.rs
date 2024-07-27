@@ -716,6 +716,9 @@ impl GpuManager::ver {
             GFP_KERNEL,
         )?;
 
+        Ok(x)
+    }
+
     /// Fetch and validate the GPU dynamic configuration from the device tree and hardware.
     ///
     /// Force disable inlining to avoid blowing up the stack.
