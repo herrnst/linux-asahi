@@ -771,7 +771,7 @@ impl HeapAllocator {
             garbage: if keep_garbage {
                 Some({
                     let mut v = Vec::new();
-                    v.try_reserve(128)?;
+                    v.reserve(128, GFP_KERNEL)?;
                     v
                 })
             } else {
@@ -1058,8 +1058,8 @@ impl Allocator for HeapAllocator {
                         for node in g.drain(0..block) {
                             inner.total_garbage -= node.size() as usize;
                             garbage
-                                .try_push(node)
-                                .expect("try_push() failed after reserve()");
+                                .push(node, GFP_KERNEL)
+                                .expect("push() failed after reserve()");
                         }
                     }
                 });
