@@ -125,7 +125,7 @@ impl<'a> InitDataBuilder::ver<'a> {
                 let f_khz = (ps.freq_hz / 1000) as u64;
                 let v_max = ps.max_volt_mv() as u64;
 
-                t1.try_push(
+                t1.push(
                     (1000000000 * (curve_cfg.t1_coef as u64) / (f_khz * v_max))
                         .try_into()
                         .unwrap(),
