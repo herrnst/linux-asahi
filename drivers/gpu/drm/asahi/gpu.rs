@@ -684,9 +684,6 @@ impl GpuManager::ver {
         )?;
 
         let alloc_ref = &mut alloc;
-        let tx_channels = Box::init(try_init!(TxChannels::ver {
-            device_control: channel::DeviceControlChannel::ver::new(dev, alloc_ref)?,
-        }))?;
         let tx_channels = Box::init(
             try_init!(TxChannels::ver {
                 device_control: channel::DeviceControlChannel::ver::new(dev, alloc_ref)?,
