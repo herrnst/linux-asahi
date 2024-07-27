@@ -859,7 +859,7 @@ impl GpuManager::ver {
                     },
                 )?;
 
-                this.as_mut().io_mappings_mut().try_push(mapping)?;
+                this.as_mut().io_mappings_mut().push(mapping, GFP_KERNEL)?;
                 cur_iova += map_size as u64;
             }
         }
