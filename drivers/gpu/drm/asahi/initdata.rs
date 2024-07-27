@@ -129,6 +129,7 @@ impl<'a> InitDataBuilder::ver<'a> {
                     (1000000000 * (curve_cfg.t1_coef as u64) / (f_khz * v_max))
                         .try_into()
                         .unwrap(),
+                    GFP_KERNEL,
                 )?;
 
                 for (j, scale) in curve_cfg.t3_scales.iter().enumerate() {
