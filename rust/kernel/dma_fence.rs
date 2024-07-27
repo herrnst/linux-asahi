@@ -5,6 +5,7 @@
 //! C header: [`include/linux/dma_fence.h`](../../include/linux/dma_fence.h)
 
 use crate::{
+    alloc::{flags::*, vec_ext::VecExt},
     bindings,
     error::{to_result, Result},
     prelude::*,
@@ -445,10 +446,10 @@ impl FenceContexts {
     pub fn new(count: u32, name: &'static CStr, key: LockClassKey) -> Result<FenceContexts> {
         let mut seqnos: Vec<AtomicU64> = Vec::new();
 
-        seqnos.try_reserve(count as usize)?;
+        seqnos.reserve(count as usize, GFP_KERNEL)?;
 
         for _ in 0..count {
-            seqnos.try_push(Default::default())?;
+            seqnos.push(Default::default(), GFP_KERNEL)?;
         }
 
         // SAFETY: This is always safe to call
