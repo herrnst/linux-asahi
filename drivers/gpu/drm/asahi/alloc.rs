@@ -870,8 +870,11 @@ impl HeapAllocator {
             new_top
         );
 
-        self.mm
-            .with_inner(|inner| inner.backing_objects.try_push((obj, mapping, gpu_ptr)))?;
+        self.mm.with_inner(|inner| {
+            inner
+                .backing_objects
+                .push((obj, mapping, gpu_ptr), GFP_KERNEL)
+        })?;
 
         self.top = new_top;
 
