@@ -6,6 +6,7 @@
 //! modules, including lock classes.
 
 use crate::{
+    alloc::{box_ext::BoxExt, flags::*, vec_ext::VecExt},
     c_str, fmt,
     init::InPlaceInit,
     new_mutex,
@@ -123,7 +124,7 @@ fn caller_lock_class_inner() -> Result<&'static DynLockClassKey> {
 
     let mut ptr = slot.load(Ordering::Relaxed);
     if ptr.is_null() {
-        let new_element = Box::pin_init(new_mutex!(Vec::new()))?;
+        let new_element = Box::pin_init(new_mutex!(Vec::new()), GFP_KERNEL)?;
 
         // SAFETY: We never move out of this Box
         let raw = Box::into_raw(unsafe { Pin::into_inner_unchecked(new_element) });
@@ -156,17 +157,20 @@ fn caller_lock_class_inner() -> Result<&'static DynLockClassKey> {
     }
 
     // We immediately leak the class, so it becomes 'static
-    let new_class = Box::leak(Box::try_new(DynLockClassKey {
-        key: Opaque::zeroed(),
-        loc: loc_key,
-        name: CString::try_from_fmt(fmt!("{}:{}:{}", loc.file(), loc.line(), loc.column()))?,
-    })?);
+    let new_class = Box::leak(Box::new(
+        DynLockClassKey {
+            key: Opaque::zeroed(),
+            loc: loc_key,
+            name: CString::try_from_fmt(fmt!("{}:{}:{}", loc.file(), loc.line(), loc.column()))?,
+        },
+        GFP_KERNEL,
+    )?);
 
     // SAFETY: This is safe to call with a pointer to a dynamically allocated lockdep key,
     // and we never free the objects so it is safe to never unregister the key.
     unsafe { bindings::lockdep_register_key(new_class.key.get()) };
 
-    guard.try_push(new_class)?;
+    guard.push(new_class, GFP_KERNEL)?;
 
     Ok(new_class)
 }
