@@ -443,14 +443,13 @@ impl Queue::ver {
             inner: QueueInner::ver {
                 dev: dev.into(),
                 ualloc,
-                gpu_context: Arc::try_new(workqueue::GpuContext::new(
-                    dev,
-                    alloc,
-                    buffer.as_ref().map(|b| b.any_ref()),
-                )?)?,
+                gpu_context: Arc::new(
+                    workqueue::GpuContext::new(dev, alloc, buffer.as_ref().map(|b| b.any_ref()))?,
+                    GFP_KERNEL,
+                )?,
 
                 buffer,
-                notifier_list: Arc::try_new(notifier_list)?,
+                notifier_list: Arc::new(notifier_list, GFP_KERNEL)?,
                 notifier,
                 id,
                 #[ver(V >= V13_0B4)]
