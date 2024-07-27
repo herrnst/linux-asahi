@@ -354,7 +354,7 @@ impl File {
             ualloc_priv,
             vm,
             _dummy_mapping: dummy_mapping,
-        })?)?;
+        }, GFP_KERNEL,)?)?;
 
         data.vm_id = id;
 
