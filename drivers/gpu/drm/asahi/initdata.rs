@@ -109,15 +109,15 @@ impl<'a> InitDataBuilder::ver<'a> {
             let mut t3 = Vec::new();
 
             for _ in 0..curve_cfg.t3_scales.len() {
-                t3.try_push(Vec::new())?;
+                t3.push(Vec::new(), GFP_KERNEL)?;
             }
 
             for (i, ps) in dyncfg.pwr.perf_states.iter().enumerate() {
                 let t3_coef = curve_cfg.t3_coefs[i];
                 if t3_coef == 0 {
-                    t1.try_push(0xffff)?;
+                    t1.push(0xffff, GFP_KERNEL)?;
                     for j in t3.iter_mut() {
-                        j.try_push(0x3ffffff)?;
+                        j.push(0x3ffffff, GFP_KERNEL)?;
                     }
                     continue;
                 }
