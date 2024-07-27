@@ -684,31 +684,37 @@ impl GpuManager::ver {
         let tx_channels = Box::init(try_init!(TxChannels::ver {
             device_control: channel::DeviceControlChannel::ver::new(dev, alloc_ref)?,
         }))?;
+        let tx_channels = Box::init(
+            try_init!(TxChannels::ver {
+                device_control: channel::DeviceControlChannel::ver::new(dev, alloc_ref)?,
+            }),
+            GFP_KERNEL,
+        )?;
 
-        let x = UniqueArc::pin_init(try_pin_init!(GpuManager::ver {
-            dev: dev.into(),
-            cfg,
-            dyncfg: *dyncfg,
-            initdata: *initdata,
-            uat: *uat,
-            io_mappings: Vec::new(),
-            next_mmio_iova: IOVA_KERN_MMIO_RANGE.start,
-            rtkit <- Mutex::new_named(None, c_str!("rtkit")),
-            crashed: AtomicBool::new(false),
-            event_manager,
-            alloc <- Mutex::new_named(alloc, c_str!("alloc")),
-            fwctl_channel <- Mutex::new_named(fwctl_channel, c_str!("fwctl_channel")),
-            rx_channels <- Mutex::new_named(*rx_channels, c_str!("rx_channels")),
-            tx_channels <- Mutex::new_named(*tx_channels, c_str!("tx_channels")),
-            pipes,
-            buffer_mgr,
-            ids: Default::default(),
-            garbage_work <- Mutex::new_named(Vec::new(), c_str!("garbage_work")),
-            garbage_contexts <- Mutex::new_named(Vec::new(), c_str!("garbage_contexts")),
-        }))?;
-
-        Ok(x)
-    }
+        let x = UniqueArc::pin_init(
+            try_pin_init!(GpuManager::ver {
+                dev: dev.into(),
+                cfg,
+                dyncfg: *dyncfg,
+                initdata: *initdata,
+                uat: *uat,
+                io_mappings: Vec::new(),
+                next_mmio_iova: IOVA_KERN_MMIO_RANGE.start,
+                rtkit <- Mutex::new_named(None, c_str!("rtkit")),
+                crashed: AtomicBool::new(false),
+                event_manager,
+                alloc <- Mutex::new_named(alloc, c_str!("alloc")),
+                fwctl_channel <- Mutex::new_named(fwctl_channel, c_str!("fwctl_channel")),
+                rx_channels <- Mutex::new_named(*rx_channels, c_str!("rx_channels")),
+                tx_channels <- Mutex::new_named(*tx_channels, c_str!("tx_channels")),
+                pipes,
+                buffer_mgr,
+                ids: Default::default(),
+                garbage_work <- Mutex::new_named(Vec::new(), c_str!("garbage_work")),
+                garbage_contexts <- Mutex::new_named(Vec::new(), c_str!("garbage_contexts")),
+            }),
+            GFP_KERNEL,
+        )?;
 
     /// Fetch and validate the GPU dynamic configuration from the device tree and hardware.
     ///
