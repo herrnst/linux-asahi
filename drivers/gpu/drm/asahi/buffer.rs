@@ -411,26 +411,29 @@ impl Buffer::ver {
             })?;
 
         Ok(Buffer::ver {
-            inner: Arc::pin_init(Mutex::new(BufferInner::ver {
-                info,
-                ualloc,
-                ualloc_priv,
-                blocks: Vec::new(),
-                max_blocks,
-                max_blocks_nomemless,
-                mgr: mgr.clone(),
-                active_scenes: 0,
-                active_slot: None,
-                last_token: None,
-                tpc: None,
-                kernel_buffer,
-                stats,
-                cfg: gpu.get_cfg(),
-                preempt1_size,
-                preempt2_size,
-                preempt3_size,
-                num_clusters,
-            }))?,
+            inner: Arc::pin_init(
+                Mutex::new(BufferInner::ver {
+                    info,
+                    ualloc,
+                    ualloc_priv,
+                    blocks: Vec::new(),
+                    max_blocks,
+                    max_blocks_nomemless,
+                    mgr: mgr.clone(),
+                    active_scenes: 0,
+                    active_slot: None,
+                    last_token: None,
+                    tpc: None,
+                    kernel_buffer,
+                    stats,
+                    cfg: gpu.get_cfg(),
+                    preempt1_size,
+                    preempt2_size,
+                    preempt3_size,
+                    num_clusters,
+                }),
+                GFP_KERNEL,
+            )?,
         })
     }
 
@@ -500,20 +503,20 @@ impl Buffer::ver {
         // Allocate the new blocks first, so if it fails they will be dropped
         let mut ualloc = inner.ualloc.lock();
         for _i in 0..add_blocks {
-            new_blocks.try_push(ualloc.array_gpuonly(BLOCK_SIZE)?)?;
+            new_blocks.push(ualloc.array_gpuonly(BLOCK_SIZE)?, GFP_KERNEL)?;
         }
         core::mem::drop(ualloc);
 
         // Then actually commit them
-        inner.blocks.try_reserve(add_blocks)?;
+        inner.blocks.reserve(add_blocks, GFP_KERNEL)?;
 
         for (i, block) in new_blocks.into_iter().enumerate() {
             let page_num = (block.gpu_va().get() >> PAGE_SHIFT) as u32;
 
             inner
                 .blocks
-                .try_push(block)
-                .expect("try_push() failed after try_reserve()");
+                .push(block, GFP_KERNEL)
+                .expect("push() failed after reserve()");
             inner.info.block_list[2 * (cur_count + i)] = page_num;
             for j in 0..PAGES_PER_BLOCK {
                 inner.info.page_list[(cur_count + i) * PAGES_PER_BLOCK + j] = page_num + j as u32;
@@ -762,7 +765,7 @@ impl BufferManager::ver {
     pub(crate) fn new() -> Result<BufferManager::ver> {
         let mut owners = Vec::new();
         for _i in 0..(NUM_BUFFERS as usize) {
-            owners.try_push(None)?;
+            owners.push(None, GFP_KERNEL)?;
         }
         Ok(BufferManager::ver(slotalloc::SlotAllocator::new(
             NUM_BUFFERS,

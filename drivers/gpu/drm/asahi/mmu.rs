@@ -1511,20 +1511,23 @@ impl Uat {
 
         dev_info!(dev, "MMU: Initializing kernel page table\n");
 
-        Arc::pin_init(try_pin_init!(UatInner {
-            handoff_flush <- init::pin_init_array_from_fn(|i| {
-                Mutex::new_named(HandoffFlush(&handoff.flush[i]), c_str!("handoff_flush"))
+        Arc::pin_init(
+            try_pin_init!(UatInner {
+                handoff_flush <- init::pin_init_array_from_fn(|i| {
+                    Mutex::new_named(HandoffFlush(&handoff.flush[i]), c_str!("handoff_flush"))
+                }),
+                shared <- Mutex::new_named(
+                    UatShared {
+                        kernel_ttb1: 0,
+                        map_kernel_to_user: false,
+                        handoff_rgn,
+                        ttbs_rgn,
+                    },
+                    c_str!("uat_shared")
+                ),
             }),
-            shared <- Mutex::new_named(
-                UatShared {
-                    kernel_ttb1: 0,
-                    map_kernel_to_user: false,
-                    handoff_rgn,
-                    ttbs_rgn,
-                },
-                c_str!("uat_shared")
-            ),
-        }))
+            GFP_KERNEL,
+        )
     }
 
     /// Creates a new `Uat` instance given the relevant hardware config.
