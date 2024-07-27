@@ -140,11 +140,14 @@ impl<T: SlotItem> SlotAllocator<T> {
 
         for i in 0..num_slots {
             slots
-                .try_push(constructor(&mut data, i).map(|item| Entry {
-                    item,
-                    get_time: 0,
-                    drop_time: 0,
-                }))
+                .push(
+                    constructor(&mut data, i).map(|item| Entry {
+                        item,
+                        get_time: 0,
+                        drop_time: 0,
+                    }),
+                    GFP_KERNEL,
+                )
                 .expect("try_push() failed after reservation");
         }
 
