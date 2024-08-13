@@ -140,14 +140,6 @@
 						remote-endpoint = <&typec1_usb_ss>;
 					};
 				};
-#ifdef ENABLE_DCPEXT_TYPEC
-				port@2 {
-					reg = <2>;
-					typec1_con_dp: endpoint {
-						remote-endpoint = <&typec1_dp>;
-					};
-				};
-#endif
 			};
 		};
 	};
@@ -220,12 +212,6 @@
 #ifdef ENABLE_DCPEXT_TYPEC
 &display {
 	iommus = <&disp0_dart 0>, <&dispext1_dart 0>;
-
-	port {
-		typec1_dp: endpoint {
-			remote-endpoint = <&typec1_con_dp>;
-		};
-	};
 };
 
 &dispext1_dart {
