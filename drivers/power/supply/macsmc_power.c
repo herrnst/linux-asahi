@@ -320,7 +320,6 @@ static int macsmc_battery_get_property(struct power_supply *psy,
 	int ret = 0;
 	u8 vu8;
 	u16 vu16;
-	u32 vu32;
 	s16 vs16;
 	s32 vs32;
 	s64 vs64;
