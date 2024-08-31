@@ -143,10 +143,10 @@ static int __init apple_cpuidle_init(void)
 	if (ret)
 		return ret;
 
-	if (!of_machine_is_compatible("apple,arm-platform") &&
-	    of_machine_is_compatible("apple,t8015") &&
-	    of_machine_is_compatible("apple,t8010") &&
-	    of_machine_is_compatible("apple,s8000") &&
+	if (!of_machine_is_compatible("apple,arm-platform") ||
+	    of_machine_is_compatible("apple,t8015") ||
+	    of_machine_is_compatible("apple,t8010") ||
+	    of_machine_is_compatible("apple,s8000") ||
 	    of_machine_is_compatible("apple,t7000"))
 		return 0;
 
