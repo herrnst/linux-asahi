@@ -589,8 +589,9 @@ static int apple_pcie_probe_port(struct device_node *np)
 {
 	struct gpio_desc *gd;
 
+	/* check whether the GPPIO pin exists but leave it as is */
 	gd = fwnode_gpiod_get_index(of_fwnode_handle(np), "reset", 0,
-				    GPIOD_OUT_LOW, "PERST#");
+				    GPIOD_ASIS, "PERST#");
 	if (IS_ERR(gd)) {
 		return PTR_ERR(gd);
 	}
