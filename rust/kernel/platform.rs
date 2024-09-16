@@ -106,8 +106,8 @@ impl<T: Driver> Adapter<T> {
         })
     }
 
-    extern "C" fn remove_callback(pdev: *mut bindings::platform_device) -> core::ffi::c_int {
-        from_result(|| {
+    extern "C" fn remove_callback(pdev: *mut bindings::platform_device) {
+        {
             // SAFETY: `pdev` is guaranteed to be a valid, non-null pointer.
             let ptr = unsafe { bindings::platform_get_drvdata(pdev) };
             // SAFETY:
@@ -117,11 +117,9 @@ impl<T: Driver> Adapter<T> {
             //     `remove` is the canonical kernel location to free driver data. so OK
             //     to convert the pointer back to a Rust structure here.
             let data = unsafe { T::Data::from_foreign(ptr) };
-            let ret = T::remove(&data);
+            let _ = T::remove(&data);
             <T::Data as driver::DeviceRemoval>::device_remove(&data);
-            ret?;
-            Ok(0)
-        })
+        }
     }
 }
 
