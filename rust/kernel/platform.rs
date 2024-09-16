@@ -38,7 +38,7 @@ impl<T: Driver> driver::DriverOps for Adapter<T> {
 
         pdrv.driver.name = name.as_char_ptr();
         pdrv.probe = Some(Self::probe_callback);
-        pdrv.remove = Some(Self::remove_callback);
+        pdrv.__bindgen_anon_1.remove = Some(Self::remove_callback);
         if let Some(t) = T::OF_DEVICE_ID_TABLE {
             pdrv.driver.of_match_table = t.as_ref();
         }
