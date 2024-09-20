@@ -44,6 +44,7 @@ static const struct arm64_cpu_capabilities arm64_impdef_features[] = {
 		.field_width = 1,
 		.sign = FTR_UNSIGNED,
 		.min_field_value = 1,
+		.max_field_value = 1,
 	},
 	{
 		.desc = "TSO memory model (Fixed)",
