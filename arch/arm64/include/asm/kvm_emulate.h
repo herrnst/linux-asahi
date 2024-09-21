@@ -80,8 +80,10 @@ static inline void vcpu_reset_hcr(struct kvm_vcpu *vcpu)
 {
 	if (!vcpu_has_run_once(vcpu))
 		vcpu->arch.hcr_el2 = HCR_GUEST_FLAGS;
-	if (IS_ENABLED(CONFIG_ARM64_ACTLR_STATE) &&
-		alternative_has_cap_unlikely(ARM64_HAS_TSO_APPLE))
+	if (IS_ENABLED(CONFIG_ARM64_ACTLR_STATE) && (
+			alternative_has_cap_unlikely(ARM64_HAS_ACTLR_VIRT) ||
+			alternative_has_cap_unlikely(ARM64_HAS_ACTLR_VIRT_APPLE)
+		))
 		vcpu->arch.hcr_el2 &= ~HCR_TACR;
 
 	/*
