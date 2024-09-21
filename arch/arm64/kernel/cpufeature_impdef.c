@@ -78,7 +78,7 @@ static const struct arm64_cpu_capabilities arm64_impdef_features[] = {
 	{
 		.desc = "TSO memory model (Fixed)",
 		.capability = ARM64_HAS_TSO_FIXED,
-		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
+		.type = SCOPE_LOCAL_CPU | ARM64_CPUCAP_PERMITTED_FOR_LATE_CPU,
 		.matches = has_tso_fixed,
 	},
 #endif
