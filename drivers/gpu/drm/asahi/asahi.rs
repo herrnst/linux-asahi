@@ -48,5 +48,10 @@ module_platform_driver! {
             permissions: 0o644,
             description: "Initial TVB size in blocks",
         },
+        robust_isolation: bool {
+            default: false,
+            permissions: 0o644,
+            description: "Fully isolate GPU contexts (limits performance)",
+        },
     },
 }
