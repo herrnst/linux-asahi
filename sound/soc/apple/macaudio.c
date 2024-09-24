@@ -504,7 +504,7 @@ static int macaudio_parse_of(struct macaudio_snd_data *ma)
 		cpu = of_get_child_by_name(np, "cpu");
 		if (!cpu) {
 			ret = dev_err_probe(dev, -EINVAL,
-				"missing CPU DAI node at %pOF\n", np);;
+				"missing CPU DAI node at %pOF\n", np);
 			goto err_free;
 		}
 
