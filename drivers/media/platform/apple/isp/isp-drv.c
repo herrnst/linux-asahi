@@ -160,11 +160,12 @@ static int isp_of_read_coord(struct device *dev, struct device_node *np,
 static int apple_isp_init_presets(struct apple_isp *isp)
 {
 	struct device *dev = isp->dev;
-	struct device_node *np, *child;
+	struct device_node *child;
 	struct isp_preset *preset;
 	int err = 0;
 
-	np = of_get_child_by_name(dev->of_node, "sensor-presets");
+	struct device_node *np __free(device_node) =
+		of_get_child_by_name(dev->of_node, "sensor-presets");
 	if (!np) {
 		dev_err(dev, "failed to get DT node 'presets'\n");
 		return -EINVAL;
@@ -173,16 +174,13 @@ static int apple_isp_init_presets(struct apple_isp *isp)
 	isp->num_presets = of_get_child_count(np);
 	if (!isp->num_presets) {
 		dev_err(dev, "no sensor presets found\n");
-		err = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 
 	isp->presets = devm_kzalloc(
 		dev, sizeof(*isp->presets) * isp->num_presets, GFP_KERNEL);
-	if (!isp->presets) {
-		err = -ENOMEM;
-		goto err;
-	}
+	if (!isp->presets)
+		return -ENOMEM;
 
 	preset = isp->presets;
 	for_each_child_of_node(np, child) {
@@ -193,23 +191,23 @@ static int apple_isp_init_presets(struct apple_isp *isp)
 		if (err) {
 			dev_err(dev, "no apple,config-index property\n");
 			of_node_put(child);
-			goto err;
+			return err;
 		}
 
 		err = isp_of_read_coord(dev, child, "apple,input-size",
 					&preset->input_dim);
 		if (err)
-			goto err;
+			return err;
 		err = isp_of_read_coord(dev, child, "apple,output-size",
 					&preset->output_dim);
 		if (err)
-			goto err;
+			return err;
 
 		err = of_property_read_u32_array(child, "apple,crop", xywh, 4);
 		if (err) {
 			dev_err(dev, "failed to read 'apple,crop' property\n");
 			of_node_put(child);
-			goto err;
+			return err;
 		}
 		preset->crop_offset.x = xywh[0];
 		preset->crop_offset.y = xywh[1];
@@ -219,9 +217,7 @@ static int apple_isp_init_presets(struct apple_isp *isp)
 		preset++;
 	}
 
-err:
-	of_node_put(np);
-	return err;
+	return 0;
 }
 
 static const char * isp_fw2str(enum isp_firmware_version version)
