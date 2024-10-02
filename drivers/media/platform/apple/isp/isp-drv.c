@@ -138,7 +138,6 @@ static void apple_isp_free_iommu(struct apple_isp *isp)
 	drm_mm_takedown(&isp->iovad);
 }
 
-/* NOTE: of_node_put()s the OF node on failure. */
 static int isp_of_read_coord(struct device *dev, struct device_node *np,
 			     const char *prop, struct coord *val)
 {
@@ -148,7 +147,6 @@ static int isp_of_read_coord(struct device *dev, struct device_node *np,
 	ret = of_property_read_u32_array(np, prop, xy, 2);
 	if (ret) {
 		dev_err(dev, "failed to read '%s' property\n", prop);
-		of_node_put(np);
 		return ret;
 	}
 
@@ -160,7 +158,6 @@ static int isp_of_read_coord(struct device *dev, struct device_node *np,
 static int apple_isp_init_presets(struct apple_isp *isp)
 {
 	struct device *dev = isp->dev;
-	struct device_node *child;
 	struct isp_preset *preset;
 	int err = 0;
 
@@ -183,14 +180,13 @@ static int apple_isp_init_presets(struct apple_isp *isp)
 		return -ENOMEM;
 
 	preset = isp->presets;
-	for_each_child_of_node(np, child) {
+	for_each_child_of_node_scoped(np, child) {
 		u32 xywh[4];
 
 		err = of_property_read_u32(child, "apple,config-index",
 					   &preset->index);
 		if (err) {
 			dev_err(dev, "no apple,config-index property\n");
-			of_node_put(child);
 			return err;
 		}
 
@@ -206,7 +202,6 @@ static int apple_isp_init_presets(struct apple_isp *isp)
 		err = of_property_read_u32_array(child, "apple,crop", xywh, 4);
 		if (err) {
 			dev_err(dev, "failed to read 'apple,crop' property\n");
-			of_node_put(child);
 			return err;
 		}
 		preset->crop_offset.x = xywh[0];
