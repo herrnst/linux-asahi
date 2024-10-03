@@ -681,14 +681,17 @@ static void spihid_process_message(struct spihid_apple *spihid, u8 *data,
 	struct device *dev = &spihid->spidev->dev;
 	struct spihid_msg_hdr *hdr;
 	bool handled = false;
+	size_t payload_len;
 	u8 *payload;
 
 	if (!spihid_verify_msg(spihid, data, length))
 		return;
 
 	hdr = (struct spihid_msg_hdr *)data;
+	payload_len = le16_to_cpu(hdr->length);
 
-	if (hdr->length == 0)
+	if (payload_len == 0 ||
+		(payload_len + sizeof(struct spihid_msg_hdr) + 2) > length)
 		return;
 
 	payload = data + sizeof(struct spihid_msg_hdr);
@@ -696,11 +699,11 @@ static void spihid_process_message(struct spihid_apple *spihid, u8 *data,
 	switch (flags) {
 	case SPIHID_READ_PACKET:
 		handled = spihid_process_input_report(spihid, device, hdr,
-						      payload, le16_to_cpu(hdr->length));
+						      payload, payload_len);
 		break;
 	case SPIHID_WRITE_PACKET:
 		handled = spihid_process_response(spihid, device, hdr, payload,
-						  le16_to_cpu(hdr->length));
+						  payload_len);
 		break;
 	default:
 		break;
