@@ -655,6 +655,7 @@ static void tas2770_codec_remove(struct snd_soc_component *component)
 {
 	struct tas2770_priv *tas2770 = snd_soc_component_get_drvdata(component);
 
+	sysfs_remove_groups(&component->dev->kobj, tas2770_sysfs_groups);
 	regulator_disable(tas2770->sdz_reg);
 }
 
