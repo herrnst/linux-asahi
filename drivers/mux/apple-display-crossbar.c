@@ -423,7 +423,7 @@ static const struct apple_dpxbar_hw apple_dpxbar_hw_t6000 = {
 	.ops = &apple_dpxbar_ops,
 };
 
-const static struct apple_dpxbar_hw apple_dpxbar_hw_t6020 = {
+static const struct apple_dpxbar_hw apple_dpxbar_hw_t6020 = {
 	.n_ufp = 9,
 	.ops = &apple_dpxbar_t602x_ops,
 };
