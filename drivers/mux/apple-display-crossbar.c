@@ -405,7 +405,7 @@ static int apple_dpxbar_probe(struct platform_device *pdev)
 	return 0;
 }
 
-const static struct apple_dpxbar_hw apple_dpxbar_hw_t8103 = {
+static const struct apple_dpxbar_hw apple_dpxbar_hw_t8103 = {
 	.n_ufp = 2,
 	.tunable = 0,
 	.ops = &apple_dpxbar_ops,
