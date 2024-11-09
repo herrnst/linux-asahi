@@ -646,7 +646,9 @@ static int dcpaud_comp_bind(struct device *dev, struct device *main, void *data)
 	}
 	dcpaud->dma_dev = &dma_pdev->dev;
 
-	dcpaud->dma_link = device_link_add(dev, dcpaud->dma_dev, DL_FLAG_PM_RUNTIME | DL_FLAG_RPM_ACTIVE |
+	dcpaud->dma_link = device_link_add(dev, dcpaud->dma_dev,
+					   DL_FLAG_PM_RUNTIME |
+					   DL_FLAG_RPM_ACTIVE |
 					   DL_FLAG_STATELESS);
 
 	/* ignore errors to prevent audio issues affecting the display side */
