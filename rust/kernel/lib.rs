@@ -57,6 +57,8 @@ pub mod drm;
 pub mod error;
 #[cfg(CONFIG_RUST_FW_LOADER_ABSTRACTIONS)]
 pub mod firmware;
+#[cfg(CONFIG_IIO)]
+pub mod iio;
 pub mod init;
 pub mod io_buffer;
 pub mod io_mem;
