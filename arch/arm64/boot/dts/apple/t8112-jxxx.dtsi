@@ -164,6 +164,10 @@
 	mux-control-names = "dp-xbar";
 	mux-index = <2>;
 };
+
+&dpaudio1 {
+	status = "okay";
+};
 #endif
 
 /* USB controllers */
