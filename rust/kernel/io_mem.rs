@@ -243,6 +243,27 @@ impl<const SIZE: usize> IoMem<SIZE> {
         Ok(())
     }
 
+    /// Copy memory block to i/o memory from the specified buffer.
+    pub fn try_memcpy_toio(&self, offset: usize, buffer: &[u8]) -> Result {
+        if !Self::offset_ok_of_val(offset, buffer) {
+            return Err(EINVAL);
+        }
+
+        let ptr = self.ptr.wrapping_add(offset);
+
+        // SAFETY:
+        //   - The type invariants guarantee that `ptr` is a valid pointer.
+        //   - The bounds of `buffer` are checked with a call to `offset_ok_of_val()`.
+        unsafe {
+            bindings::memcpy_toio(
+                ptr as *mut _,
+                buffer.as_ptr() as *const _,
+                buffer.len() as _,
+            )
+        };
+        Ok(())
+    }
+
     define_read!(readb, try_readb, u8);
     define_read!(readw, try_readw, u16);
     define_read!(readl, try_readl, u32);
