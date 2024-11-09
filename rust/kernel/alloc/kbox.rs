@@ -457,3 +457,13 @@ where
 
 //#[unstable(feature = "coerce_unsized", issue = "18598")]
 impl<T: ?Sized + Unsize<U>, U: ?Sized, A: Allocator> CoerceUnsized<Box<U, A>> for Box<T, A> {}
+
+impl<T, A> AsRef<T> for Box<T, A>
+where
+    T: ?Sized,
+    A: Allocator,
+{
+    fn as_ref(&self) -> &T {
+        &*self
+    }
+}
