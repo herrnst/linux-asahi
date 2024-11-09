@@ -30,6 +30,8 @@
 #include <linux/ethtool.h>
 #include <linux/firmware.h>
 #include <linux/fs.h>
+#include <linux/iio/iio.h>
+#include <linux/iio/types.h>
 #include <linux/io-pgtable.h>
 #include <linux/iosys-map.h>
 #include <linux/jiffies.h>
@@ -52,6 +54,9 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <linux/xarray.h>
+#include <sound/core.h>
+#include <sound/dmaengine_pcm.h>
+#include <sound/pcm.h>
 
 /* `bindgen` gets confused at certain things. */
 const size_t RUST_CONST_HELPER_ARCH_SLAB_MINALIGN = ARCH_SLAB_MINALIGN;
@@ -83,3 +88,10 @@ const xa_mark_t BINDINGS_XA_MARK_2 = XA_MARK_2;
 const xa_mark_t BINDINGS_XA_PRESENT = XA_PRESENT;
 const xa_mark_t BINDINGS_XA_MARK_MAX = XA_MARK_MAX;
 const xa_mark_t BINDINGS_XA_FREE_MARK = XA_FREE_MARK;
+
+const u64 BINDINGS_SNDRV_PCM_FMTBIT_FLOAT_LE = SNDRV_PCM_FMTBIT_FLOAT_LE;
+
+const u32 BINDINGS_IIO_CHAN_INFO_RAW = IIO_CHAN_INFO_RAW;
+const u32 BINDINGS_IIO_CHAN_INFO_PROCESSED = IIO_CHAN_INFO_PROCESSED;
+const u32 BINDINGS_IIO_ANGL = IIO_ANGL;
+const u32 BINDINGS_IIO_LIGHT = IIO_LIGHT;
