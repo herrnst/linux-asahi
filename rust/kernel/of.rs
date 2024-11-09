@@ -95,7 +95,7 @@ impl Node {
     }
 
     /// Returns a reference to the underlying C `device_node` structure.
-    fn node(&self) -> &bindings::device_node {
+    pub fn node(&self) -> &bindings::device_node {
         // SAFETY: `raw_node` is valid per the type invariant.
         unsafe { &*self.raw_node }
     }
@@ -354,6 +354,22 @@ impl<'a> Property<'a> {
     /// Returns true if the property is empty (zero-length), which typically represents boolean true.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    pub fn copy_to_slice<T: PropertyUnit>(&self, target: &mut [T]) -> Result<()> {
+        if self.len() % T::UNIT_SIZE != 0 {
+            return Err(EINVAL);
+        }
+
+        if self.len() / T::UNIT_SIZE != target.len() {
+            return Err(EINVAL);
+        }
+
+        let val = self.value();
+        for (i, off) in (0..self.len()).step_by(T::UNIT_SIZE).enumerate() {
+            target[i] = T::from_bytes(&val[off..off + T::UNIT_SIZE])?
+        }
+        Ok(())
     }
 }
 
