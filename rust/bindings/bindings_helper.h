@@ -17,6 +17,7 @@
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
+#include <linux/dmapool.h>
 #include <linux/errname.h>
 #include <linux/ethtool.h>
 #include <linux/firmware.h>
@@ -29,6 +30,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_dma.h>
 #include <linux/pci.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
