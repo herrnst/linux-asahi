@@ -343,7 +343,7 @@ iopt_cfg!(AmdCfg, amd, io_pgtable_cfg__bindgen_ty_1__bindgen_ty_6);
 iopt_cfg!(
     AppleUATCfg,
     apple_uat_cfg,
-    io_pgtable_cfg__bindgen_ty_1__bindgen_ty_6
+    io_pgtable_cfg__bindgen_ty_1__bindgen_ty_7
 );
 
 iopt_type!(ARM32LPAES1, ARMLPAES1Cfg, io_pgtable_fmt_ARM_32_LPAE_S1);
