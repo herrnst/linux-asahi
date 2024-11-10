@@ -28,6 +28,7 @@
 #include "cred.c"
 #include "device.c"
 #include "dma.c"
+#include "dma-mapping.c"
 #include "drm.c"
 #include "err.c"
 #include "irq.c"
