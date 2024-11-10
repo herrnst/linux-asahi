@@ -14,6 +14,7 @@
 #include "cred.c"
 #include "device.c"
 #include "dma-fence.c"
+#include "dma-mapping.c"
 #include "drm.c"
 #include "err.c"
 #include "io.c"
