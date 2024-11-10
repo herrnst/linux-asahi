@@ -222,14 +222,17 @@ impl<A: AllocInner<T>, T> Allocator<A, T> {
         end: u64,
         mode: InsertMode,
     ) -> Result<Node<A, T>> {
-        let mut mm_node = KBox::new(NodeData {
-            // SAFETY: This C struct should be zero-initialized.
-            node: unsafe { core::mem::zeroed() },
-            valid: false,
-            inner: node,
-            mm: self.mm.clone(),
-            _pin: PhantomPinned,
-        })?;
+        let mut mm_node = KBox::new(
+            NodeData {
+                // SAFETY: This C struct should be zero-initialized.
+                node: unsafe { core::mem::zeroed() },
+                valid: false,
+                inner: node,
+                mm: self.mm.clone(),
+                _pin: PhantomPinned,
+            },
+            GFP_KERNEL,
+        )?;
 
         let guard = self.mm.lock();
         // SAFETY: We hold the lock and all pointers are valid.
@@ -261,14 +264,17 @@ impl<A: AllocInner<T>, T> Allocator<A, T> {
         size: u64,
         color: usize,
     ) -> Result<Node<A, T>> {
-        let mut mm_node = KBox::new(NodeData {
-            // SAFETY: This C struct should be zero-initialized.
-            node: unsafe { core::mem::zeroed() },
-            valid: false,
-            inner: node,
-            mm: self.mm.clone(),
-            _pin: PhantomPinned,
-        })?;
+        let mut mm_node = KBox::new(
+            NodeData {
+                // SAFETY: This C struct should be zero-initialized.
+                node: unsafe { core::mem::zeroed() },
+                valid: false,
+                inner: node,
+                mm: self.mm.clone(),
+                _pin: PhantomPinned,
+            },
+            GFP_KERNEL,
+        )?;
 
         mm_node.node.start = start;
         mm_node.node.size = size;
