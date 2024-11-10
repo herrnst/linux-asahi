@@ -18,6 +18,9 @@
 #![feature(dispatch_from_dyn)]
 #![feature(inline_const)]
 #![feature(lint_reasons)]
+#![feature(ptr_sub_ptr)]
+#![feature(sized_type_properties)]
+#![feature(slice_range)]
 #![feature(unsize)]
 #![allow(stable_features)]
 // Stable in Rust 1.83
