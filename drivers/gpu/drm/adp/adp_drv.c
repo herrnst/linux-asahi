@@ -106,6 +106,7 @@ static const struct file_operations adp_fops = {
 	.read           = drm_read,
 	.llseek         = noop_llseek,
 	.mmap           = drm_gem_mmap,
+	.fop_flags      = FOP_UNSIGNED_OFFSET,
 	DRM_GEM_DMA_UNMAPPED_AREA_FOPS
 };
 
