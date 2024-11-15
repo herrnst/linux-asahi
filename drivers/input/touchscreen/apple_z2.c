@@ -5,7 +5,6 @@
  * Copyright (C) The Asahi Linux Contributors
  */
 
-#include <asm/unaligned.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/input.h>
@@ -14,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/spi/spi.h>
+#include <linux/unaligned.h>
 
 #define APPLE_Z2_NUM_FINGERS_OFFSET      16
 #define APPLE_Z2_FINGERS_OFFSET          24
