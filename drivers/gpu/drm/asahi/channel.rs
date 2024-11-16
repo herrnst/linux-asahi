@@ -414,7 +414,10 @@ impl EventChannel::ver {
                                 );
                             }
                             None => {
-                                dev_crit!(self.dev, "EventChannel: No GPU manager available!\n")
+                                dev_crit!(
+                                    self.dev.as_ref(),
+                                    "EventChannel: No GPU manager available!\n"
+                                )
                             }
                         },
                         msg => {
