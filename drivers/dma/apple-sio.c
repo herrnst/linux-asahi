@@ -511,13 +511,13 @@ static void sio_recv_msg(void *cookie, u8 ep, u64 msg)
 	struct sio_data *sio = cookie;
 	struct sio_tagdata *tags = &sio->tags;
 	u32 data;
-	u8 param, type, tag, sioep;
+	u8 type, tag, sioep;
 
 	if (ep != EP_SIO)
 		goto unknown;
 
 	data  = FIELD_GET(SIOMSG_DATA, msg);
-	param = FIELD_GET(SIOMSG_PARAM, msg);
+	// param = FIELD_GET(SIOMSG_PARAM, msg);
 	type  = FIELD_GET(SIOMSG_TYPE, msg);
 	tag   = FIELD_GET(SIOMSG_TAG, msg);
 	sioep = FIELD_GET(SIOMSG_EP, msg);
