@@ -40,7 +40,7 @@
 #define T602X_REG_810_STAT 0x810 // status of 0x014
 #define T602X_REG_81C_STAT 0x81c // status of 0x024
 
-/**
+/*
  * T8013, T600x, T8112 dp crossbar registers.
  */
 
