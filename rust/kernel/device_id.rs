@@ -153,6 +153,7 @@ impl<T: RawDeviceId, U, const N: usize> IdTable<T, U> for IdArray<T, U, N> {
 macro_rules! module_device_table {
     ($table_type: literal, $module_table_name:ident, $table_name:ident) => {
         #[rustfmt::skip]
+        #[cfg(MODULE)]
         #[export_name =
             concat!("__mod_device_table", "__", $table_type, "__", stringify!($table_name))
         ]
