@@ -147,6 +147,8 @@ struct drm_asahi_gem_create {
 
 	/** @handle: Returned GEM handle for the BO */
 	__u32 handle;
+
+	// TODO: u32 pad missing here, fix for next rev bump
 };
 
 struct drm_asahi_gem_mmap_offset {
@@ -229,6 +231,8 @@ struct drm_asahi_queue_create {
 
 	/** @queue_id: The returned queue ID */
 	__u32 queue_id;
+
+	// TODO: u32 pad missing here, fix for next rev bump
 };
 
 struct drm_asahi_queue_destroy {
@@ -237,6 +241,8 @@ struct drm_asahi_queue_destroy {
 
 	/** @queue_id: The queue ID to be destroyed */
 	__u32 queue_id;
+
+	// TODO: u32 pad missing here, fix for next rev bump
 };
 
 enum drm_asahi_sync_type {
@@ -261,7 +267,7 @@ struct drm_asahi_sync {
 enum drm_asahi_subqueue {
 	DRM_ASAHI_SUBQUEUE_RENDER = 0, /* Also blit */
 	DRM_ASAHI_SUBQUEUE_COMPUTE = 1,
-	DRM_ASAHI_SUBQUEUE_COUNT = 2,
+	DRM_ASAHI_SUBQUEUE_COUNT = 2, /* Must remain multiple of 2 for struct alignment */
 };
 
 #define DRM_ASAHI_BARRIER_NONE ~(0U)
@@ -618,6 +624,9 @@ struct drm_asahi_result_render {
 
 	/** @num_tvb_overflows: Number of TVB overflows that occurred for this render */
 	__u32 num_tvb_overflows;
+
+	/** @pad: MBZ */
+	__u32 pad;
 };
 
 struct drm_asahi_result_compute {
