@@ -148,7 +148,10 @@ struct drm_asahi_gem_create {
 	/** @handle: Returned GEM handle for the BO */
 	__u32 handle;
 
-	// TODO: u32 pad missing here, fix for next rev bump
+	// TODO: remove guards on next rev bump
+#if DRM_ASAHI_UNSTABLE_UABI_VERSION > 10011
+	__u32 pad;
+#endif
 };
 
 struct drm_asahi_gem_mmap_offset {
@@ -232,7 +235,10 @@ struct drm_asahi_queue_create {
 	/** @queue_id: The returned queue ID */
 	__u32 queue_id;
 
-	// TODO: u32 pad missing here, fix for next rev bump
+	// TODO: remove guards on next rev bump
+#if DRM_ASAHI_UNSTABLE_UABI_VERSION > 10011
+	__u32 pad;
+#endif
 };
 
 struct drm_asahi_queue_destroy {
@@ -242,7 +248,10 @@ struct drm_asahi_queue_destroy {
 	/** @queue_id: The queue ID to be destroyed */
 	__u32 queue_id;
 
-	// TODO: u32 pad missing here, fix for next rev bump
+	// TODO: remove guards on next rev bump
+#if DRM_ASAHI_UNSTABLE_UABI_VERSION > 10011
+	__u32 pad;
+#endif
 };
 
 enum drm_asahi_sync_type {
