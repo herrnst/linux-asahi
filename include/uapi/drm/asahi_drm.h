@@ -77,6 +77,7 @@ struct drm_asahi_params_global {
 
 enum drm_asahi_feat_compat {
 	DRM_ASAHI_FEAT_SOFT_FAULTS = (1UL) << 0,
+	DRM_ASAHI_FEAT_GETTIME = (1UL) << 1, /* Remove for upstream */
 };
 
 enum drm_asahi_feat_incompat {
@@ -639,12 +640,6 @@ struct drm_asahi_get_time {
 
 	/** @flags: MBZ. */
 	__u64 flags;
-
-	/** @tv_sec: On return, seconds part of a point in time */
-	__s64 tv_sec;
-
-	/** @tv_nsec: On return, nanoseconds part of a point in time */
-	__s64 tv_nsec;
 
 	/** @gpu_timestamp: On return, the GPU timestamp at that point in time */
 	__u64 gpu_timestamp;
