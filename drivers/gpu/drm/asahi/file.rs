@@ -235,7 +235,7 @@ impl File {
             unstable_uabi_version: uapi::DRM_ASAHI_UNSTABLE_UABI_VERSION,
             pad0: 0,
 
-            feat_compat: gpu.get_cfg().gpu_feat_compat,
+            feat_compat: gpu.get_cfg().gpu_feat_compat | hw::feat::compat::GETTIME,
             feat_incompat: gpu.get_cfg().gpu_feat_incompat,
 
             gpu_generation: gpu.get_dyncfg().id.gpu_gen as u32,
@@ -937,23 +937,17 @@ impl File {
             return Err(EINVAL);
         }
 
-        let mut tp: kernel::bindings::timespec64 = Default::default();
         let mut gputime: u64 = 0;
 
-        // TODO: bindings
-        // SAFETY: These functions are safe to call as long as the argument pointer is valid
+        // SAFETY: Assembly only loads the timer
         unsafe {
             core::arch::asm!(
                 "mrs {x}, CNTPCT_EL0",
                 x = out(reg) gputime
             );
-            kernel::bindings::ktime_get_raw_ts64(&mut tp);
-            kernel::bindings::timens_add_monotonic(&mut tp);
         }
 
         data.gpu_timestamp = gputime;
-        data.tv_sec = tp.tv_sec;
-        data.tv_nsec = tp.tv_nsec;
 
         Ok(0)
     }
