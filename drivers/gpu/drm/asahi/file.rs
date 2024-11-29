@@ -928,16 +928,16 @@ impl File {
 
     /// IOCTL: get_time: Get the current GPU timer value.
     pub(crate) fn get_time(
-        device: &AsahiDevice,
+        _device: &AsahiDevice,
         data: &mut uapi::drm_asahi_get_time,
-        file: &DrmFile,
+        _file: &DrmFile,
     ) -> Result<u32> {
         if data.extensions != 0 || data.flags != 0 {
             cls_pr_debug!(Errors, "get_time: Unexpected extensions or flags\n");
             return Err(EINVAL);
         }
 
-        let mut gputime: u64 = 0;
+        let gputime: u64;
 
         // SAFETY: Assembly only loads the timer
         unsafe {
