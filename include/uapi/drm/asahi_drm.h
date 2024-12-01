@@ -122,6 +122,7 @@ enum drm_asahi_feat_compat {
 	/** GPU has soft faults enabled (for USC and texture sampling) */
 	DRM_ASAHI_FEAT_SOFT_FAULTS = (1UL) << 0,
 	DRM_ASAHI_FEAT_GETTIME = (1UL) << 1, /* Remove for upstream */
+	DRM_ASAHI_FEAT_USER_TIMESTAMPS = (1UL) << 2,
 };
 
 /** Incompatible feature bits */
