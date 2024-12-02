@@ -68,6 +68,7 @@
 };
 
 &spi0 {
+	cs-gpios = <&pinctrl_ap 109 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
 	touchbar0: touchbar@0 {
@@ -78,7 +79,6 @@
 		spi-cs-setup-delay-ns = <2000>;
 		spi-cs-hold-delay-ns = <2000>;
 		reset-gpios = <&pinctrl_ap 139 GPIO_ACTIVE_LOW>;
-		cs-gpios = <&pinctrl_ap 109 0>;
 		interrupts-extended = <&pinctrl_ap 194 IRQ_TYPE_EDGE_FALLING>;
 		firmware-name = "apple/dfrmtfw-j293.bin";
 		touchscreen-size-x = <23045>;
