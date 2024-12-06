@@ -78,6 +78,7 @@
 		spi-max-frequency = <11500000>;
 		spi-cs-setup-delay-ns = <2000>;
 		spi-cs-hold-delay-ns = <2000>;
+		cs-gpios = <&pinctrl_ap 109 GPIO_ACTIVE_LOW>;
 		reset-gpios = <&pinctrl_ap 139 GPIO_ACTIVE_LOW>;
 		interrupts-extended = <&pinctrl_ap 194 IRQ_TYPE_EDGE_FALLING>;
 		firmware-name = "apple/dfrmtfw-j293.bin";
