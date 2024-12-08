@@ -141,10 +141,15 @@ static void apple_plane_atomic_update(struct drm_plane *plane,
 	/* Handled in atomic_flush */
 }
 
-static const struct drm_plane_helper_funcs apple_plane_helper_funcs = {
+static const struct drm_plane_helper_funcs apple_primary_plane_helper_funcs = {
 	.atomic_check	= apple_plane_atomic_check,
 	.atomic_update	= apple_plane_atomic_update,
 	.get_scanout_buffer = drm_fb_dma_get_scanout_buffer,
+};
+
+static const struct drm_plane_helper_funcs apple_plane_helper_funcs = {
+	.atomic_check	= apple_plane_atomic_check,
+	.atomic_update	= apple_plane_atomic_update,
 };
 
 static void apple_plane_cleanup(struct drm_plane *plane)
@@ -221,7 +226,10 @@ static struct drm_plane *apple_plane_init(struct drm_device *dev,
 	if (ret)
 		return ERR_PTR(ret);
 
-	drm_plane_helper_add(plane, &apple_plane_helper_funcs);
+	if (type == DRM_PLANE_TYPE_PRIMARY)
+		drm_plane_helper_add(plane, &apple_primary_plane_helper_funcs);
+	else
+		drm_plane_helper_add(plane, &apple_plane_helper_funcs);
 
 	return plane;
 }
