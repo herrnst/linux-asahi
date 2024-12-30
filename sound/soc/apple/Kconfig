@@ -3,6 +3,7 @@ config SND_SOC_APPLE_AOP_AUDIO
 	depends on ARCH_APPLE || COMPILE_TEST
 	depends on RUST
 	select APPLE_AOP
+	select SND_DMAENGINE_PCM
 	default m if ARCH_APPLE
 	help
 	  This option enables an ASoC driver for sound devices connected to the AOP
