@@ -196,6 +196,7 @@
 		interrupt-names = "send-empty", "send-not-empty",
 			"recv-empty", "recv-not-empty";
 		#mbox-cells = <0>;
+		status = "disabled";
 	};
 
 	aop_dart: iommu@2a6808000 {
@@ -204,6 +205,7 @@
 		#iommu-cells = <1>;
 		interrupt-parent = <&aic>;
 		interrupts = <AIC_IRQ 0 628 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
 	};
 
 	aop_admac: dma-controller@2a6980000 {
@@ -222,6 +224,7 @@
 				      <&aic AIC_IRQ 0 631 IRQ_TYPE_LEVEL_HIGH>,
 				      <0>;
 		iommus = <&aop_dart 10>;
+		status = "disabled";
 	};
 
 	aop: aop@2a6c00000 {
