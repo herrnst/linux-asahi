@@ -1658,9 +1658,10 @@
 				<0x3 0x83050000 0x0 0x8000>,
 				<0x3 0x80000000 0x0 0x4000>,
 				<0x3 0x82a90000 0x0 0x4000>,
-				<0x3 0x82a84000 0x0 0x4000>;
+				<0x3 0x82a84000 0x0 0x4000>,
+				<0x2 0x3b784000 0x0 0x4000>;
 			reg-names = "core", "lpdptx", "axi2af", "usb2phy",
-				"pipehandler";
+				"pipehandler", "usb4pmgr";
 
 			#phy-cells = <1>;
 			#reset-cells = <0>;
@@ -1688,6 +1689,7 @@
 			mode-switch;
 			svid = <0xff01>, <0x8087>;
 			power-domains = <&ps_atc0_usb>;
+			//power-domains = <&ps_atc0_usb_aon>, <&ps_atc0_common>;
 		};
 
 		dwc3_1: usb@502280000 {
@@ -1729,9 +1731,10 @@
 				<0x5 0x03050000 0x0 0x8000>,
 				<0x5 0x0 0x0 0x4000>,
 				<0x5 0x02a90000 0x0 0x4000>,
-				<0x5 0x02a84000 0x0 0x4000>;
+				<0x5 0x02a84000 0x0 0x4000>,
+				<0x2 0x3b788000 0x0 0x4000>;
 			reg-names = "core", "lpdptx", "axi2af", "usb2phy",
-				"pipehandler";
+				"pipehandler", "usb4pmgr";
 
 			nvmem-cells = <&atcphy1_aus_cmn_shm_vreg_trim>,
 				<&atcphy1_auspll_rodco_encap>,
@@ -1761,6 +1764,7 @@
 			mode-switch;
 			svid = <0xff01>, <0x8087>;
 			power-domains = <&ps_atc1_usb>;
+			//power-domains = <&ps_atc1_usb_aon>, <&ps_atc1_common>;
 		};
 
 		atcphy1_xbar: mux@50304c000 {
