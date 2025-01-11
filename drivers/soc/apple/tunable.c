@@ -51,12 +51,13 @@ void apple_apply_tunable(void __iomem *regs, struct apple_tunable *tunable)
 	size_t i;
 
 	for (i = 0; i < tunable->sz; ++i) {
-		u32 val;
+		u32 val, old_val;
 
-		val = readl_relaxed(regs + tunable->values[i].offset);
+		val = old_val = readl_relaxed(regs + tunable->values[i].offset);
 		val &= ~tunable->values[i].mask;
 		val |= tunable->values[i].value;
-		writel_relaxed(val, regs + tunable->values[i].offset);
+		if (val != old_val)
+			writel_relaxed(val, regs + tunable->values[i].offset);
 	}
 }
 EXPORT_SYMBOL(apple_apply_tunable);
