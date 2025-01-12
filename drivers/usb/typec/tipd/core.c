@@ -400,6 +400,8 @@ static int tps6598x_connect(struct tps6598x *tps, u32 status)
 		desc.identity = &tps->partner_identity;
 	}
 
+	tps->data->typec_update_mode(tps);
+
 	typec_set_pwr_opmode(tps->port, mode);
 	typec_set_pwr_role(tps->port, TPS_STATUS_TO_TYPEC_PORTROLE(status));
 	typec_set_vconn_role(tps->port, TPS_STATUS_TO_TYPEC_VCONN(status));
@@ -412,8 +414,6 @@ static int tps6598x_connect(struct tps6598x *tps, u32 status)
 	tps->partner = typec_register_partner(tps->port, &desc);
 	if (IS_ERR(tps->partner))
 		return PTR_ERR(tps->partner);
-
-	tps->data->typec_update_mode(tps);
 
 	if (desc.identity)
 		typec_partner_set_identity(tps->partner);
