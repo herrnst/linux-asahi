@@ -349,7 +349,9 @@ static void cd321x_typec_update_mode(struct tps6598x *tps)
 		tps->state.data = NULL;
 		printk("typec_set_mode: USB\n");
 		cd321x_typec_update_hpd(tps);
+		printk("typec_set_mode: DO\n");
 		typec_set_mode(tps->port, TYPEC_STATE_USB);
+		printk("typec_set_mode: USB DONE\n");
 	}
 }
 
