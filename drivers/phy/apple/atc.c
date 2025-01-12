@@ -1637,10 +1637,6 @@ static int atcphy_usb2_power_on(struct phy *phy)
 		      USB2PHY_SIG_VBUSVLDEXT_FORCE_VAL |
 		      USB2PHY_SIG_VBUSVLDEXT_FORCE_EN);
 
-	/* enable the dummy PHY for the SS lanes */
-	set32(atcphy->regs.pipehandler + PIPEHANDLER_NONSELECTED_OVERRIDE,
-	      PIPEHANDLER_DUMMY_PHY_EN);
-
 	return 0;
 }
 
@@ -2104,44 +2100,32 @@ static int atcphy_probe_switch(struct apple_atcphy *atcphy)
 	return PTR_ERR_OR_ZERO(typec_switch_register(atcphy->dev, &sw_desc));
 }
 
-static void atcphy_configure_pipehandler_usb3(struct apple_atcphy *atcphy)
+static int atcphy_pipehandler_check(struct apple_atcphy *atcphy)
 {
-	int ret;
-	u32 reg;
-
 	BUG_ON(!mutex_is_locked(&atcphy->lock));
-
-	/* TODO
-	   37c8: explain why this is silly but required; sync with reset controller
-	   38c3: i forgot why this is required
-	*/
-	set32(atcphy->regs.pipehandler + PIPEHANDLER_NONSELECTED_OVERRIDE,
-	      PIPEHANDLER_DUMMY_PHY_EN);
-	clear32(atcphy->regs.pipehandler + PIPEHANDLER_AON_GEN,
-		PIPEHANDLER_AON_GEN_DWC3_FORCE_CLAMP_EN);
-	set32(atcphy->regs.pipehandler + PIPEHANDLER_AON_GEN,
-	      PIPEHANDLER_AON_GEN_DWC3_RESET_N);
-
-	/* usb plug only probably
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_OVERRIDE_VALUES = 0x16 (RXVALID=0, RXDETECT=1)
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: W.4   PIPEHANDLER_OVERRIDE_VALUES = 0x10 (RXVALID=0, RXDETECT=0)
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_OVERRIDE = 0x0 (RXVALID=0, RXDETECT=0)
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: W.4   PIPEHANDLER_OVERRIDE = 0x1 (RXVALID=1, RXDETECT=0)
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_OVERRIDE = 0x1 (RXVALID=1, RXDETECT=0)
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: W.4   PIPEHANDLER_OVERRIDE = 0x5 (RXVALID=1, RXDETECT=1)
-*/
 
 	if (readl(atcphy->regs.pipehandler + PIPEHANDLER_LOCK_ACK) &
 	    PIPEHANDLER_LOCK_EN) {
 		dev_err(atcphy->dev, "pipehandler already locked, trying unlock and hoping for the best\n");
 
-		ret = atcphy_pipehandler_unlock(atcphy);
+		int ret = atcphy_pipehandler_unlock(atcphy);
 		if (ret) {
 			dev_err(atcphy->dev, "Failed to unlock pipehandler, this port is probably dead until replug\n");
-			return;
+			return -1;
 		}
 	}
+	return 0;
+}
 
+static void atcphy_configure_pipehandler_usb3(struct apple_atcphy *atcphy)
+{
+	int ret;
+	u32 reg;
+
+	if (atcphy_pipehandler_check(atcphy))
+		return;
+
+	/* Force disable link detection */
 	clear32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE_VALUES, PIPEHANDLER_OVERRIDE_VAL_RXDETECT0 | PIPEHANDLER_OVERRIDE_VAL_RXDETECT1);
 	set32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE, PIPEHANDLER_OVERRIDE_RXVALID);
 	set32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE, PIPEHANDLER_OVERRIDE_RXDETECT);
@@ -2152,15 +2136,7 @@ static void atcphy_configure_pipehandler_usb3(struct apple_atcphy *atcphy)
 		return;
 	}
 
-	/* [PhyTracer@/arm-io/atc-phy1] MMIO: R.4   ACIOPHY_BIST_RESET = 0x0 ()
-[PhyTracer@/arm-io/atc-phy1] MMIO: W.4   ACIOPHY_BIST_RESET = 0x1 ()
-
-[PhyTracer@/arm-io/atc-phy1] MMIO: R.4   ACIOPHY_BIST_OV = 0x0 ()
-[PhyTracer@/arm-io/atc-phy1] MMIO: W.4   ACIOPHY_BIST_OV = 0x2000 ()
-
-[PhyTracer@/arm-io/atc-phy1] MMIO: R.4   ACIOPHY_BIST_STAT = 0xf05 ()
-[PhyTracer@/arm-io/atc-phy1] MMIO: R.4   ACIOPHY_BIST_STAT = 0xf05 ()
-*/
+	/* BIST dance */
 
 	core_set32(atcphy, ACIOPHY_TOP_BIST_PHY_CFG0,
 		   ACIOPHY_TOP_BIST_PHY_CFG0_LN0_RESET_N);
@@ -2174,39 +2150,16 @@ static void atcphy_configure_pipehandler_usb3(struct apple_atcphy *atcphy)
 			atcphy->dev,
 			"timed out waiting for ACIOPHY_TOP_PHY_STAT_LN0_UNK23\n");
 
-/*
-[PhyTracer@/arm-io/atc-phy1] MMIO: R.4   ACIOPHY_BIST_CFG0 = 0x0 ()
-[PhyTracer@/arm-io/atc-phy1] MMIO: W.4   ACIOPHY_BIST_CFG0 = 0x4 ()
-
-[PhyTracer@/arm-io/atc-phy1] MMIO: R.4   ACIOPHY_BIST_CFG0 = 0x4 ()
-[PhyTracer@/arm-io/atc-phy1] MMIO: W.4   ACIOPHY_BIST_CFG0 = 0x0 ()
-*/
-
 	core_set32(atcphy, ACIOPHY_TOP_BIST_READ_CTRL,
 		   ACIOPHY_TOP_BIST_READ_CTRL_LN0_PHY_STATUS_RE);
 	core_clear32(atcphy, ACIOPHY_TOP_BIST_READ_CTRL,
 		     ACIOPHY_TOP_BIST_READ_CTRL_LN0_PHY_STATUS_RE);
 
-/*
-[PhyTracer@/arm-io/atc-phy1] MMIO: R.4   ACIOPHY_BIST_CFG1 = 0x0 ()
-[PhyTracer@/arm-io/atc-phy1] MMIO: W.4   ACIOPHY_BIST_CFG1 = 0xc00 ()
-*/
 	core_mask32(atcphy, ACIOPHY_TOP_BIST_PHY_CFG1,
 		    ACIOPHY_TOP_BIST_PHY_CFG1_LN0_PWR_DOWN,
 		    FIELD_PREP(ACIOPHY_TOP_BIST_PHY_CFG1_LN0_PWR_DOWN,
 			       3));
-/*
-[PhyTracer@/arm-io/atc-phy1] MMIO: R.4   ACIOPHY_BIST_OV = 0x2000 ()
-[PhyTracer@/arm-io/atc-phy1] MMIO: W.4   ACIOPHY_BIST_OV = 0x2002000 ()
 
-[PhyTracer@/arm-io/atc-phy1] MMIO: R.4   ACIOPHY_BIST_EN = 0x0 ()
-[PhyTracer@/arm-io/atc-phy1] MMIO: W.4   ACIOPHY_BIST_EN = 0x8000000 ()
-
-[PhyTracer@/arm-io/atc-phy1] MMIO: R.4   ACIOPHY_BIST_EN = 0x8000000 ()
-[PhyTracer@/arm-io/atc-phy1] MMIO: W.4   ACIOPHY_BIST_EN = 0x18000000 ()
-
-[PhyTracer@/arm-io/atc-phy1] MMIO: W.4   ACIOPHY_BIST_EN = 0x0 ()
-*/
 	core_set32(atcphy, ACIOPHY_TOP_BIST_OV_CFG,
 		   ACIOPHY_TOP_BIST_OV_CFG_LN0_PWR_DOWN_OV);
 	core_set32(atcphy, ACIOPHY_TOP_BIST_CIOPHY_CFG1,
@@ -2215,12 +2168,7 @@ static void atcphy_configure_pipehandler_usb3(struct apple_atcphy *atcphy)
 		   ACIOPHY_TOP_BIST_CIOPHY_CFG1_BIST_EN);
 	writel(0, atcphy->regs.core + ACIOPHY_TOP_BIST_CIOPHY_CFG1);
 
-/*
-[PhyTracer@/arm-io/atc-phy1] MMIO: R.4   ACIOPHY_BIST_STAT = 0xf05 ()
-[PhyTracer@/arm-io/atc-phy1] MMIO: R.4   ACIOPHY_BIST_STAT = 0xf05 ()
-[PhyTracer@/arm-io/atc-phy1] MMIO: R.4   ACIOPHY_BIST_STAT = 0xf05 ()
-[PhyTracer@/arm-io/atc-phy1] MMIO: R.4   ACIOPHY_BIST_STAT = 0xf05 ()
-*/
+
 	ret = readl_poll_timeout(
 		atcphy->regs.core + ACIOPHY_TOP_PHY_STAT, reg,
 		(reg & ACIOPHY_TOP_PHY_STAT_LN0_UNK0), 100, 100000);
@@ -2237,49 +2185,26 @@ static void atcphy_configure_pipehandler_usb3(struct apple_atcphy *atcphy)
 			atcphy->dev,
 			"timed out waiting for ACIOPHY_TOP_PHY_STAT_LN0_UNK23\n");
 
-/*
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_NONSELECTED_OVERRIDE = 0x9732 (NATIVE_POWER_DOWN=0x2, NATIVE_RESET=1, DUMMY_PHY_EN=1)
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: W.4   PIPEHANDLER_NONSELECTED_OVERRIDE = 0x9733 (NATIVE_POWER_DOWN=0x3, NATIVE_RESET=1, DUMMY_PHY_EN=1)
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_NONSELECTED_OVERRIDE = 0x9733 (NATIVE_POWER_DOWN=0x3, NATIVE_RESET=1, DUMMY_PHY_EN=1)
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: W.4   PIPEHANDLER_NONSELECTED_OVERRIDE = 0x8733 (NATIVE_POWER_DOWN=0x3, NATIVE_RESET=0, DUMMY_PHY_EN=1)
-*/
-	mask32(atcphy->regs.pipehandler + PIPEHANDLER_NONSELECTED_OVERRIDE,PIPEHANDLER_NATIVE_POWER_DOWN, 0x3); // TOOD: FIELD_PREP
+	/* Clear reset for non-selected USB3 PHY (?) */
+
+	mask32(atcphy->regs.pipehandler + PIPEHANDLER_NONSELECTED_OVERRIDE, PIPEHANDLER_NATIVE_POWER_DOWN, 0x3); // TOOD: FIELD_PREP
 	clear32(atcphy->regs.pipehandler + PIPEHANDLER_NONSELECTED_OVERRIDE, PIPEHANDLER_NATIVE_RESET);
 
-/*
-[PhyTracer@/arm-io/atc-phy1] MMIO: W.4   ACIOPHY_BIST_OV = 0x0 ()
-[PhyTracer@/arm-io/atc-phy1] MMIO: R.4   ACIOPHY_BIST_EN = 0x0 ()
-[PhyTracer@/arm-io/atc-phy1] MMIO: W.4   ACIOPHY_BIST_EN = 0x8000000 ()
-[PhyTracer@/arm-io/atc-phy1] MMIO: R.4   ACIOPHY_BIST_EN = 0x8000000 ()
-[PhyTracer@/arm-io/atc-phy1] MMIO: W.4   ACIOPHY_BIST_EN = 0x18000000 ()
-*/
+	/* More BIST stuff (?) */
 	writel(0, atcphy->regs.core + ACIOPHY_TOP_BIST_OV_CFG);
 	core_set32(atcphy, ACIOPHY_TOP_BIST_CIOPHY_CFG1,
 		   ACIOPHY_TOP_BIST_CIOPHY_CFG1_CLK_EN);
 	core_set32(atcphy, ACIOPHY_TOP_BIST_CIOPHY_CFG1,
 		   ACIOPHY_TOP_BIST_CIOPHY_CFG1_BIST_EN);
 
-
-/*
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_MUX_CTRL = 0x22 (MUX_MODE=2(UNK2), CLK_SELECT=4(UNK4))
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: W.4   PIPEHANDLER_MUX_CTRL = 0x2 (MUX_MODE=2(UNK2), CLK_SELECT=0(UNK0))
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_MUX_CTRL = 0x2 (MUX_MODE=2(UNK2), CLK_SELECT=0(UNK0))
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: W.4   PIPEHANDLER_MUX_CTRL = 0x0 (MUX_MODE=0(USB3_PHY), CLK_SELECT=0(UNK0))
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_MUX_CTRL = 0x0 (MUX_MODE=0(USB3_PHY), CLK_SELECT=0(UNK0))
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: W.4   PIPEHANDLER_MUX_CTRL = 0x8 (MUX_MODE=0(USB3_PHY), CLK_SELECT=1(USB3_PHY))
-*/
+	/* Configure PIPE mux to USB3 PHY */
 	writel(PIPEHANDLER_MUX_CTRL_USB3,
 		atcphy->regs.pipehandler + PIPEHANDLER_MUX_CTRL);
 
-/*
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_OVERRIDE = 0x5 (RXVALID=1, RXDETECT=1)
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: W.4   PIPEHANDLER_OVERRIDE = 0x4 (RXVALID=0, RXDETECT=1)
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_OVERRIDE = 0x4 (RXVALID=0, RXDETECT=1)
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: W.4   PIPEHANDLER_OVERRIDE = 0x0 (RXVALID=0, RXDETECT=0)
-*/
+
+	/* Remove link detection override */
 	clear32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE, PIPEHANDLER_OVERRIDE_RXVALID);
 	clear32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE, PIPEHANDLER_OVERRIDE_RXDETECT);
-
 
 	ret = atcphy_pipehandler_unlock(atcphy);
 	if (ret) {
@@ -2292,43 +2217,13 @@ static void atcphy_configure_pipehandler_dummy(struct apple_atcphy *atcphy)
 {
 	int ret;
 
-	BUG_ON(!mutex_is_locked(&atcphy->lock));
+	if (atcphy_pipehandler_check(atcphy))
+		return;
 
-/*
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_AON_GEN = 0x21 (DWC3_FORCE_CLAMP_EN=0, DWC3_RESET_N=1)
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_LOCK_ACK = 0x0 (LOCK_EN=0) */
-	if (readl(atcphy->regs.pipehandler + PIPEHANDLER_LOCK_ACK) &
-	    PIPEHANDLER_LOCK_EN) {
-		dev_err(atcphy->dev, "pipehandler already locked, trying unlock and hoping for the best\n");
-
-		ret = atcphy_pipehandler_unlock(atcphy);
-		if (ret) {
-			dev_err(atcphy->dev, "Failed to unlock pipehandler, this port is probably dead until replug\n");
-			return;
-		}
-	}
-
-
-/*
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_OVERRIDE_VALUES = 0x10 (RXVALID=0, RXDETECT=0)
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: W.4   PIPEHANDLER_OVERRIDE_VALUES = 0x10 (RXVALID=0, RXDETECT=0)
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_OVERRIDE = 0x0 (RXVALID=0, RXDETECT=0)
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: W.4   PIPEHANDLER_OVERRIDE = 0x1 (RXVALID=1, RXDETECT=0)
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_OVERRIDE = 0x1 (RXVALID=1, RXDETECT=0)
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: W.4   PIPEHANDLER_OVERRIDE = 0x5 (RXVALID=1, RXDETECT=1)
-*/
-
+	/* Force disable link detection */
 	clear32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE_VALUES, PIPEHANDLER_OVERRIDE_VAL_RXDETECT0 | PIPEHANDLER_OVERRIDE_VAL_RXDETECT1);
 	set32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE, PIPEHANDLER_OVERRIDE_RXVALID);
 	set32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE, PIPEHANDLER_OVERRIDE_RXDETECT);
-
-/*
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_LOCK_REQ = 0x0 (LOCK_EN=0)
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: W.4   PIPEHANDLER_LOCK_REQ = 0x1 (LOCK_EN=1)
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_LOCK_ACK = 0x0 (LOCK_EN=0)
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_LOCK_ACK = 0x1 (LOCK_EN=1)
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_LOCK_ACK = 0x1 (LOCK_EN=1)
-*/
 
 	ret = atcphy_pipehandler_lock(atcphy);
 	if (ret) {
@@ -2336,23 +2231,10 @@ static void atcphy_configure_pipehandler_dummy(struct apple_atcphy *atcphy)
 		return;
 	}
 
-/*[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_MUX_CTRL = 0x8 (MUX_MODE=0(USB3_PHY), CLK_SELECT=1(USB3_PHY))
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: W.4   PIPEHANDLER_MUX_CTRL = 0x0 (MUX_MODE=0(USB3_PHY), CLK_SELECT=0(UNK0))
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_MUX_CTRL = 0x0 (MUX_MODE=0(USB3_PHY), CLK_SELECT=0(UNK0))
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: W.4   PIPEHANDLER_MUX_CTRL = 0x2 (MUX_MODE=2(UNK2), CLK_SELECT=0(UNK0))
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_MUX_CTRL = 0x2 (MUX_MODE=2(UNK2), CLK_SELECT=0(UNK0))
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: W.4   PIPEHANDLER_MUX_CTRL = 0x22 (MUX_MODE=2(UNK2), CLK_SELECT=4(UNK4))
-*/
+	/* Switch to dummy PHY */
 	writel(PIPEHANDLER_MUX_CTRL_DUMMY,
 		atcphy->regs.pipehandler + PIPEHANDLER_MUX_CTRL);
 
-/*
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_LOCK_REQ = 0x1 (LOCK_EN=1)
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: W.4   PIPEHANDLER_LOCK_REQ = 0x0 (LOCK_EN=0)
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_LOCK_ACK = 0x1 (LOCK_EN=1)
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_LOCK_ACK = 0x0 (LOCK_EN=0)
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_LOCK_ACK = 0x0 (LOCK_EN=0)
-*/
 	ret = atcphy_pipehandler_unlock(atcphy);
 	if (ret) {
 		dev_err(atcphy->dev, "Failed to unlock pipehandler");
@@ -2388,15 +2270,7 @@ static void atcphy_setup_pipehandler(struct apple_atcphy *atcphy)
 
 	writel(PIPEHANDLER_MUX_CTRL_DUMMY,
 		atcphy->regs.pipehandler + PIPEHANDLER_MUX_CTRL);
-/*
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_NONSELECTED_OVERRIDE = 0x1332 (NATIVE_POWER_DOWN=0x2, NATIVE_RESET=1, DUMMY_PHY_EN=0)
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: W.4   PIPEHANDLER_NONSELECTED_OVERRIDE = 0x9332 (NATIVE_POWER_DOWN=0x2, NATIVE_RESET=1, DUMMY_PHY_EN=1)
 
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_MUX_CTRL = 0x22 (MUX_MODE=2(UNK2), CLK_SELECT=4(UNK4))
-
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_NONSELECTED_OVERRIDE = 0x9332 (NATIVE_POWER_DOWN=0x2, NATIVE_RESET=1, DUMMY_PHY_EN=1)
-[Dwc3Tracer@/arm-io/usb-drd1] MMIO: W.4   PIPEHANDLER_NONSELECTED_OVERRIDE = 0x9732 (NATIVE_POWER_DOWN=0x2, NATIVE_RESET=1, DUMMY_PHY_EN=1)
-*/
 	set32(atcphy->regs.pipehandler + PIPEHANDLER_NONSELECTED_OVERRIDE,
 	      PIPEHANDLER_DUMMY_PHY_EN);
 	set32(atcphy->regs.pipehandler + PIPEHANDLER_NONSELECTED_OVERRIDE,
