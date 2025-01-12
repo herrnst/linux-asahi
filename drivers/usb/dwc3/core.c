@@ -1346,6 +1346,13 @@ static int dwc3_core_init(struct dwc3 *dwc)
 	 */
 	dwc3_writel(dwc->regs, DWC3_GUID, LINUX_VERSION_CODE);
 
+	if (dwc->role_switch_reset_quirk) {
+		/* Apple quirks ? */
+		dwc3_writel(dwc->regs, 0xcd38, 0xf800f80);
+		dwc3_writel(dwc->regs, 0xcd3c, 0xfc00fc0);
+		dwc3_writel(dwc->regs, 0xcd40, 0x3c140a10);
+	}
+
 	ret = dwc3_phy_setup(dwc);
 	if (ret)
 		return ret;
