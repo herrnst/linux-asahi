@@ -220,6 +220,7 @@ static void cd321x_typec_update_mode(struct tps6598x *tps)
 		tps->state.alt = NULL;
 		tps->state.mode = TYPEC_STATE_SAFE;
 		tps->state.data = NULL;
+		printk("typec_set_mode: SAFE\n");
 		typec_set_mode(tps->port, TYPEC_STATE_SAFE);
 	} else if (tps->data_status & TPS_DATA_STATUS_DP_CONNECTION) {
 		struct tps6598x_dp_sid_status_reg dp_sid_status;
@@ -267,6 +268,7 @@ static void cd321x_typec_update_mode(struct tps6598x *tps)
 		tps->state.alt = tps->port_altmode_dp;
 		tps->state.data = &dp_data;
 		tps->state.mode = mode;
+		printk("typec_mux_set: DP connection\n");
 		typec_mux_set(tps->mux, &tps->state);
 	} else if (tps->data_status & TPS_DATA_STATUS_TBT_CONNECTION) {
 		struct tps6598x_intel_vid_status_reg intel_vid_status;
@@ -290,6 +292,7 @@ static void cd321x_typec_update_mode(struct tps6598x *tps)
 		tps->state.alt = tps->port_altmode_tbt;
 		tps->state.mode = TYPEC_TBT_MODE;
 		tps->state.data = &tbt_data;
+		printk("typec_mux_set: TBT connection\n");
 		typec_mux_set(tps->mux, &tps->state);
 	} else if (tps->data_status & CD321X_DATA_STATUS_USB4_CONNECTION) {
 		struct tps6598x_usb4_status_reg usb4_status;
@@ -313,6 +316,7 @@ static void cd321x_typec_update_mode(struct tps6598x *tps)
 		tps->state.alt = NULL;
 		tps->state.data = &eusb_data;
 		tps->state.mode = TYPEC_MODE_USB4;
+		printk("typec_mux_set: USB4 connection\n");
 		typec_mux_set(tps->mux, &tps->state);
 	} else {
 		if (tps->state.alt == NULL && tps->state.mode == TYPEC_STATE_USB)
@@ -320,6 +324,7 @@ static void cd321x_typec_update_mode(struct tps6598x *tps)
 		tps->state.alt = NULL;
 		tps->state.mode = TYPEC_STATE_USB;
 		tps->state.data = NULL;
+		printk("typec_set_mode: USB\n");
 		typec_set_mode(tps->port, TYPEC_STATE_USB);
 	}
 }
@@ -1015,6 +1020,8 @@ cd321x_register_port(struct tps6598x *tps, struct fwnode_handle *fwnode)
 {
 	int ret;
 
+	printk("cd321x_register_port(%p, %p)\n", tps, fwnode);
+
 	ret = tps6598x_register_port(tps, fwnode);
 	if (ret)
 		return ret;
@@ -1032,6 +1039,7 @@ cd321x_register_port(struct tps6598x *tps, struct fwnode_handle *fwnode)
 	tps->state.alt = NULL;
 	tps->state.mode = TYPEC_STATE_SAFE;
 	tps->state.data = NULL;
+	printk("typec_set_mode: SAFE (register)\n");
 	typec_set_mode(tps->port, TYPEC_STATE_SAFE);
 
 	return 0;

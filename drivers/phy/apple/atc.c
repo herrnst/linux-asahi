@@ -797,11 +797,14 @@ static void atcphy_apply_tunables(struct apple_atcphy *atcphy,
 	int lane0 = atcphy->swap_lanes ? 1 : 0;
 	int lane1 = atcphy->swap_lanes ? 0 : 1;
 
+	printk("HVLOG: AXI2AF TUNABLES\n");
 	apple_apply_tunable(atcphy->regs.axi2af, &atcphy->tunables.axi2af);
+	printk("HVLOG: CORE TUNABLES\n");
 	apple_apply_tunable(atcphy->regs.core, &atcphy->tunables.common);
 
 	switch (mode) {
 	case APPLE_ATCPHY_MODE_USB3:
+		printk("HVLOG: MODE_USB3\n");
 		apple_apply_tunable(atcphy->regs.core,
 				    &atcphy->tunables.lane_usb3[lane0]);
 		apple_apply_tunable(atcphy->regs.core,
@@ -809,6 +812,7 @@ static void atcphy_apply_tunables(struct apple_atcphy *atcphy,
 		break;
 
 	case APPLE_ATCPHY_MODE_USB3_DP:
+		printk("HVLOG: MODE_USB3_DP\n");
 		apple_apply_tunable(atcphy->regs.core,
 				    &atcphy->tunables.lane_usb3[lane0]);
 		apple_apply_tunable(atcphy->regs.core,
@@ -816,6 +820,7 @@ static void atcphy_apply_tunables(struct apple_atcphy *atcphy,
 		break;
 
 	case APPLE_ATCPHY_MODE_DP:
+		printk("HVLOG: MODE_DP\n");
 		apple_apply_tunable(atcphy->regs.core,
 				    &atcphy->tunables.lane_displayport[lane0]);
 		apple_apply_tunable(atcphy->regs.core,
@@ -824,6 +829,7 @@ static void atcphy_apply_tunables(struct apple_atcphy *atcphy,
 
 	case APPLE_ATCPHY_MODE_TBT:
 	case APPLE_ATCPHY_MODE_USB4:
+		printk("HVLOG: MODE_TBT_OR_USB4\n");
 		apple_apply_tunable(atcphy->regs.core,
 				    &atcphy->tunables.lane_usb4[lane0]);
 		apple_apply_tunable(atcphy->regs.core,
@@ -835,7 +841,9 @@ static void atcphy_apply_tunables(struct apple_atcphy *atcphy,
 			 "Unknown mode %d in atcphy_apply_tunables\n", mode);
 		fallthrough;
 	case APPLE_ATCPHY_MODE_OFF:
+		printk("HVLOG: MODE_OFF\n");
 	case APPLE_ATCPHY_MODE_USB2:
+		printk("HVLOG: MODE_USB2\n");
 		break;
 	}
 }
@@ -1321,6 +1329,7 @@ static int atcphy_auspll_apb_command(struct apple_atcphy *atcphy, u32 command)
 				 100000);
 	if (ret) {
 		dev_err(atcphy->dev, "AUSPLL APB command was not acked.\n");
+		BUG_ON(1);
 		// TODO: maybe remove the return here and just hope for the best
 		return ret;
 	}
@@ -1574,6 +1583,7 @@ static int atcphy_pipehandler_lock(struct apple_atcphy *atcphy)
 		clear32(atcphy->regs.pipehandler + PIPEHANDLER_LOCK_REQ, 1);
 		dev_err(atcphy->dev,
 			"pipehandler lock not acked and we can't do much about it. this type-c port is probably dead until at least the next plug/unplug or possibly even until the next reboot.\n");
+		BUG_ON(1);
 	}
 
 	return ret;
@@ -1589,9 +1599,11 @@ static int atcphy_pipehandler_unlock(struct apple_atcphy *atcphy)
 	ret = readl_poll_timeout(
 		atcphy->regs.pipehandler + PIPEHANDLER_LOCK_ACK, reg,
 		!(reg & PIPEHANDLER_LOCK_EN), 1000, 1000000);
-	if (ret)
+	if (ret) {
 		dev_err(atcphy->dev,
 			"pipehandler lock release not acked and we can't do much about it. this type-c port is probably dead until at least the next plug/unplug or possibly even until the next reboot.\n");
+		BUG_ON(1);
+	}
 
 	return ret;
 }
@@ -1600,6 +1612,8 @@ static int atcphy_usb2_power_on(struct phy *phy)
 {
 	struct apple_atcphy *atcphy = phy_get_drvdata(phy);
 	guard(mutex)(&atcphy->lock);
+
+	printk("HVLOG: atcphy_usb2_power_on\n");
 
 	/* take the PHY out of its low power state */
 	clear32(atcphy->regs.usb2phy + USB2PHY_CTL, USB2PHY_CTL_SIDDQ);
@@ -1631,6 +1645,8 @@ static int atcphy_usb2_power_off(struct phy *phy)
 	struct apple_atcphy *atcphy = phy_get_drvdata(phy);
 	guard(mutex)(&atcphy->lock);
 
+	printk("HVLOG: atcphy_usb2_power_off\n");
+
 	/* reset the PHY before transitioning to low power mode */
 	clear32(atcphy->regs.usb2phy + USB2PHY_CTL, USB2PHY_CTL_APB_RESET_N);
 	set32(atcphy->regs.usb2phy + USB2PHY_CTL,
@@ -1647,6 +1663,8 @@ static int atcphy_usb2_set_mode(struct phy *phy, enum phy_mode mode,
 {
 	struct apple_atcphy *atcphy = phy_get_drvdata(phy);
 	guard(mutex)(&atcphy->lock);
+
+	printk("HVLOG: atcphy_usb2_set_mode: %d %d\n", mode, submode);
 
 	switch (mode) {
 	case PHY_MODE_USB_HOST:
@@ -1965,6 +1983,8 @@ static int atcphy_dwc3_reset_assert(struct reset_controller_dev *rcdev,
 	struct apple_atcphy *atcphy =
 		container_of(rcdev, struct apple_atcphy, rcdev);
 
+	printk("HVLOG: dwc3 reset assert\n");
+
 	clear32(atcphy->regs.pipehandler + PIPEHANDLER_AON_GEN,
 		PIPEHANDLER_AON_GEN_DWC3_RESET_N);
 	set32(atcphy->regs.pipehandler + PIPEHANDLER_AON_GEN,
@@ -1978,6 +1998,8 @@ static int atcphy_dwc3_reset_deassert(struct reset_controller_dev *rcdev,
 {
 	struct apple_atcphy *atcphy =
 		container_of(rcdev, struct apple_atcphy, rcdev);
+
+	printk("HVLOG: dwc3 reset deassert\n");
 
 	clear32(atcphy->regs.pipehandler + PIPEHANDLER_AON_GEN,
 		PIPEHANDLER_AON_GEN_DWC3_FORCE_CLAMP_EN);
@@ -2651,6 +2673,8 @@ static int atcphy_probe(struct platform_device *pdev)
 	struct apple_atcphy *atcphy;
 	struct device *dev = &pdev->dev;
 	int ret;
+
+	printk("HVLOG: ATCPHY_PROBE!\n");
 
 	atcphy = devm_kzalloc(&pdev->dev, sizeof(*atcphy), GFP_KERNEL);
 	if (!atcphy)
