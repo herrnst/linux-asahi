@@ -1841,8 +1841,8 @@ static int atcphy_dpphy_configure(struct phy *phy,
 
 	if (opts->set_voltages)
 		return -EINVAL;
-	if (opts->set_lanes)
-		return -EINVAL;
+	/*if (opts->set_lanes)
+		return -EINVAL;*/
 
 	if (opts->set_rate) {
 		guard(mutex)(&atcphy->lock);
