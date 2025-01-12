@@ -23,6 +23,8 @@
 #include <linux/workqueue.h>
 #include <linux/firmware.h>
 
+#include <drm/drm_connector.h>
+
 #include "tps6598x.h"
 #include "trace.h"
 
@@ -204,6 +206,21 @@ static void tps6598x_typec_update_mode(struct tps6598x *tps)
 		typec_set_mode(tps->port, TYPEC_STATE_SAFE);
 }
 
+static void cd321x_typec_update_hpd(struct tps6598x *tps)
+{
+	bool hpd = tps->data_status & CD321X_DATA_STATUS_HPD_LEVEL;
+
+	if (tps->state.alt != tps->port_altmode_dp)
+		hpd = false;
+
+	printk("DP HPD: %d\n", hpd);
+	if (tps->connector_fwnode) {
+		drm_connector_oob_hotplug_event(tps->connector_fwnode,
+						hpd ? connector_status_connected :
+						      connector_status_disconnected);
+	}
+}
+
 static void cd321x_typec_update_mode(struct tps6598x *tps)
 {
 	int ret;
@@ -222,6 +239,7 @@ static void cd321x_typec_update_mode(struct tps6598x *tps)
 		tps->state.data = NULL;
 		printk("typec_set_mode: SAFE\n");
 		typec_set_mode(tps->port, TYPEC_STATE_SAFE);
+		cd321x_typec_update_hpd(tps);
 	} else if (tps->data_status & TPS_DATA_STATUS_DP_CONNECTION) {
 		struct tps6598x_dp_sid_status_reg dp_sid_status;
 		struct typec_displayport_data dp_data;
@@ -260,8 +278,10 @@ static void cd321x_typec_update_mode(struct tps6598x *tps)
 		}
 
 		if(tps->state.alt == tps->port_altmode_dp &&
-		   tps->state.mode == mode)
+		   tps->state.mode == mode) {
+			cd321x_typec_update_hpd(tps);
 			return;
+		}
 
 		dp_data.status = le32_to_cpu(dp_sid_status.status_rx);
 		dp_data.conf = le32_to_cpu(dp_sid_status.configure);
@@ -270,6 +290,7 @@ static void cd321x_typec_update_mode(struct tps6598x *tps)
 		tps->state.mode = mode;
 		printk("typec_mux_set: DP connection\n");
 		typec_mux_set(tps->mux, &tps->state);
+		cd321x_typec_update_hpd(tps);
 	} else if (tps->data_status & TPS_DATA_STATUS_TBT_CONNECTION) {
 		struct tps6598x_intel_vid_status_reg intel_vid_status;
 		struct typec_thunderbolt_data tbt_data;
@@ -293,6 +314,7 @@ static void cd321x_typec_update_mode(struct tps6598x *tps)
 		tps->state.mode = TYPEC_TBT_MODE;
 		tps->state.data = &tbt_data;
 		printk("typec_mux_set: TBT connection\n");
+		cd321x_typec_update_hpd(tps);
 		typec_mux_set(tps->mux, &tps->state);
 	} else if (tps->data_status & CD321X_DATA_STATUS_USB4_CONNECTION) {
 		struct tps6598x_usb4_status_reg usb4_status;
@@ -317,6 +339,7 @@ static void cd321x_typec_update_mode(struct tps6598x *tps)
 		tps->state.data = &eusb_data;
 		tps->state.mode = TYPEC_MODE_USB4;
 		printk("typec_mux_set: USB4 connection\n");
+		cd321x_typec_update_hpd(tps);
 		typec_mux_set(tps->mux, &tps->state);
 	} else {
 		if (tps->state.alt == NULL && tps->state.mode == TYPEC_STATE_USB)
@@ -325,6 +348,7 @@ static void cd321x_typec_update_mode(struct tps6598x *tps)
 		tps->state.mode = TYPEC_STATE_USB;
 		tps->state.data = NULL;
 		printk("typec_set_mode: USB\n");
+		cd321x_typec_update_hpd(tps);
 		typec_set_mode(tps->port, TYPEC_STATE_USB);
 	}
 }
@@ -633,8 +657,10 @@ static irqreturn_t cd321x_interrupt(int irq, void *data)
 		tps6598x_handle_plug_event(tps, status);
 
 	/* Handle alternate mode changes */
-	if (event & APPLE_CD_REG_INT_DATA_STATUS_UPDATE)
+	if (event & APPLE_CD_REG_INT_DATA_STATUS_UPDATE) {
 		cd321x_typec_update_mode(tps);
+		cd321x_typec_update_hpd(tps);
+	}
 
 err_clear_ints:
 	tps6598x_write64(tps, TPS_REG_INT_CLEAR1, event);
@@ -1035,6 +1061,13 @@ cd321x_register_port(struct tps6598x *tps, struct fwnode_handle *fwnode)
 		ret = PTR_ERR(tps->mux);
 		goto err_unregister_altmodes;
 	}
+
+	if (fwnode_property_present(fwnode, "displayport"))
+		tps->connector_fwnode = fwnode_find_reference(fwnode, "displayport", 0);
+	else
+		tps->connector_fwnode = NULL;
+	if (IS_ERR(tps->connector_fwnode))
+		tps->connector_fwnode = NULL;
 
 	tps->state.alt = NULL;
 	tps->state.mode = TYPEC_STATE_SAFE;

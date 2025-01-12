@@ -370,6 +370,7 @@ struct tps6598x {
 
 	struct gpio_desc *reset;
 	struct typec_port *port;
+	struct fwnode_handle *connector_fwnode;
 	struct typec_partner *partner;
 	struct usb_pd_identity partner_identity;
 	struct usb_role_switch *role_sw;
