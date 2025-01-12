@@ -2429,6 +2429,11 @@ static int atcphy_mux_set(struct typec_mux_dev *mux,
 	if (atcphy->mode == atcphy->target_mode)
 		return 0;
 
+	if (atcphy->pipehandler_up) {
+		/* Defer */
+		return 0;
+	}
+
 	atcphy_configure(atcphy, atcphy->target_mode);
 
 	return 0;
