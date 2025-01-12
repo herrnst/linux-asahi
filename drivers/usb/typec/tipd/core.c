@@ -231,7 +231,7 @@ static void cd321x_typec_update_mode(struct tps6598x *tps)
 	 * transitions long after they already happened and we're always coupled
 	 * with Apple's Type-C PHY which can transition between any states.
 	 */
-	if (!tps->partner) {
+	if (!(tps->data_status & TPS_DATA_STATUS_DATA_CONNECTION)) {
 		if (tps->state.mode == TYPEC_STATE_SAFE)
 			return;
 		tps->state.alt = NULL;
@@ -659,10 +659,8 @@ static irqreturn_t cd321x_interrupt(int irq, void *data)
 		tps6598x_handle_plug_event(tps, status);
 
 	/* Handle alternate mode changes */
-	if (event & APPLE_CD_REG_INT_DATA_STATUS_UPDATE) {
+	if (event & APPLE_CD_REG_INT_DATA_STATUS_UPDATE)
 		cd321x_typec_update_mode(tps);
-		cd321x_typec_update_hpd(tps);
-	}
 
 err_clear_ints:
 	tps6598x_write64(tps, TPS_REG_INT_CLEAR1, event);
