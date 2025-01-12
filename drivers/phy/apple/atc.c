@@ -1882,6 +1882,9 @@ static int atcphy_usb4_power_on(struct phy *phy)
 	uint32_t reg;
 	int ret = 0;
 
+	if (!atcphy->regs.pmgr)
+		return 0;
+
 	/*if (atcphy->mode != APPLE_ATCPHY_MODE_USB4) {
 		reinit_completion(&atcphy->atcphy_online_event);
 		mutex_unlock(&atcphy->lock);
@@ -2762,9 +2765,10 @@ static int atcphy_probe(struct platform_device *pdev)
 				     "Unable to map pipehandler regs");
 	atcphy->regs.pmgr =
 		devm_platform_ioremap_resource_byname(pdev, "usb4pmgr");
-	if (IS_ERR(atcphy->regs.pmgr))
-		return dev_err_probe(dev, PTR_ERR(atcphy->regs.pmgr),
-				     "Unable to map usb4pmgr regs");
+	if (IS_ERR(atcphy->regs.pmgr)) {
+		dev_warn(atcphy->dev, "No USB4 PMGR registers\n");
+		atcphy->regs.pmgr = NULL;
+	}
 
 	ret = atcphy_load_fuses(atcphy);
 	if (ret)
