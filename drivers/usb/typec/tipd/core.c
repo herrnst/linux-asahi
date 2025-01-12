@@ -231,7 +231,7 @@ static void cd321x_typec_update_mode(struct tps6598x *tps)
 	 * transitions long after they already happened and we're always coupled
 	 * with Apple's Type-C PHY which can transition between any states.
 	 */
-	if (!tps->partner) {
+	if (!(tps->data_status & TPS_DATA_STATUS_DATA_CONNECTION)) {
 		if (tps->state.mode == TYPEC_STATE_SAFE)
 			return;
 		tps->state.alt = NULL;
