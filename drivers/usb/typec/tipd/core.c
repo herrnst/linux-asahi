@@ -238,8 +238,8 @@ static void cd321x_typec_update_mode(struct tps6598x *tps)
 		tps->state.mode = TYPEC_STATE_SAFE;
 		tps->state.data = NULL;
 		printk("typec_set_mode: SAFE\n");
-		typec_set_mode(tps->port, TYPEC_STATE_SAFE);
 		cd321x_typec_update_hpd(tps);
+		typec_set_mode(tps->port, TYPEC_STATE_SAFE);
 	} else if (tps->data_status & TPS_DATA_STATUS_DP_CONNECTION) {
 		struct tps6598x_dp_sid_status_reg dp_sid_status;
 		struct typec_displayport_data dp_data;
