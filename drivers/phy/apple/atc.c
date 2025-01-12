@@ -1720,6 +1720,11 @@ static int atcphy_usb3_power_off(struct phy *phy)
 	atcphy_configure_pipehandler_dummy(atcphy);
 	atcphy->pipehandler_up = false;
 
+	if (atcphy->target_mode != atcphy->mode) {
+		atcphy_configure(atcphy, atcphy->target_mode);
+		atcphy->mode = atcphy->target_mode;
+	}
+
 	return 0;
 }
 
@@ -1729,6 +1734,12 @@ static int atcphy_usb3_power_on(struct phy *phy)
 	guard(mutex)(&atcphy->lock);
 
 	printk("HVLOG: atcphy_usb3_power_on\n");
+
+	if (atcphy->target_mode != atcphy->mode) {
+		atcphy_configure(atcphy, atcphy->target_mode);
+		atcphy->mode = atcphy->target_mode;
+	}
+
 	atcphy_configure_pipehandler(atcphy);
 	atcphy->pipehandler_up = true;
 
@@ -2368,14 +2379,13 @@ static int atcphy_mux_set(struct typec_mux_dev *mux,
 	if (atcphy->mode == atcphy->target_mode)
 		return 0;
 
-	if (atcphy->pipehandler_up)
-		atcphy_configure_pipehandler_dummy(atcphy);
-
-	atcphy_configure(atcphy, atcphy->target_mode);
-
-	if (atcphy->pipehandler_up)
-		atcphy_configure_pipehandler(atcphy);
-	atcphy->mode = atcphy->target_mode;
+	if (atcphy->target_mode == APPLE_ATCPHY_MODE_DP ||
+		(atcphy->mode == APPLE_ATCPHY_MODE_DP && atcphy->target_mode == APPLE_ATCPHY_MODE_OFF)) {
+		/* Do DP-only mode transitions directly. USB mode transitions are done on the PHY powerup call. */
+		WARN_ON(atcphy->pipehandler_up);
+		atcphy_configure(atcphy, atcphy->target_mode);
+		atcphy->mode = atcphy->target_mode;
+	}
 
 	return 0;
 }
