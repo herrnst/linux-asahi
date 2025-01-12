@@ -536,6 +536,7 @@ struct apple_atcphy {
 	enum atcphy_pipehandler_state pipehandler_state;
 	bool swap_lanes;
 	int dp_link_rate;
+	bool pipehandler_up;
 
 	struct {
 		void __iomem *core;
@@ -1703,6 +1704,7 @@ static int atcphy_usb3_power_off(struct phy *phy)
 
 	printk("HVLOG: atcphy_usb3_power_off\n");
 	atcphy_configure_pipehandler_dummy(atcphy);
+	atcphy->pipehandler_up = false;
 
 	return 0;
 }
@@ -1714,6 +1716,8 @@ static int atcphy_usb3_power_on(struct phy *phy)
 
 	printk("HVLOG: atcphy_usb3_power_on\n");
 	atcphy_configure_pipehandler(atcphy);
+	atcphy->pipehandler_up = true;
+
 	return 0;
 }
 
@@ -2464,7 +2468,16 @@ static int atcphy_mux_set(struct typec_mux_dev *mux,
 		atcphy->target_mode = APPLE_ATCPHY_MODE_OFF;
 	}
 
+	if (atcphy->mode == atcphy->target_mode)
+		return 0;
+
+	if (atcphy->pipehandler_up)
+		atcphy_configure_pipehandler_dummy(atcphy);
+
 	atcphy_configure(atcphy, atcphy->target_mode);
+
+	if (atcphy->pipehandler_up)
+		atcphy_configure_pipehandler(atcphy);
 	atcphy->mode = atcphy->target_mode;
 
 	return 0;
