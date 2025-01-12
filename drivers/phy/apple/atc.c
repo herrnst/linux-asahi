@@ -2305,7 +2305,7 @@ static int atcphy_mux_set(struct typec_mux_dev *mux,
 	trace_atcphy_mux_set(state);
 	guard(mutex)(&atcphy->lock);
 
-	printk("HVLOG: atcphy_mux_set %d\n", state->mode);
+	printk("HVLOG: atcphy_mux_set %ld\n", state->mode);
 
 	if (state->mode == TYPEC_STATE_SAFE) {
 		atcphy->target_mode = APPLE_ATCPHY_MODE_OFF;
