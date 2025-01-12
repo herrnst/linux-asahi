@@ -912,6 +912,8 @@ static void atcphy_configure_lanes(struct apple_atcphy *atcphy,
 {
 	const struct atcphy_mode_configuration *mode_cfg;
 
+	printk("HVLOG: atcphy_configure_lanes %d\n", mode);
+
 	if (atcphy->swap_lanes)
 		mode_cfg = &atcphy_modes[mode].swapped;
 	else
@@ -974,6 +976,8 @@ static void atcphy_configure_lanes(struct apple_atcphy *atcphy,
 
 static void atcphy_enable_dp_aux(struct apple_atcphy *atcphy)
 {
+	printk("HVLOG: atcphy_enable_dp_aux\n");
+
 	core_set32(atcphy, ACIOPHY_LANE_DP_CFG_BLK_TX_DP_CTRL0,
 		   DPTXPHY_PMA_LANE_RESET_N);
 	core_set32(atcphy, ACIOPHY_LANE_DP_CFG_BLK_TX_DP_CTRL0,
@@ -1034,6 +1038,8 @@ static void atcphy_enable_dp_aux(struct apple_atcphy *atcphy)
 
 static void atcphy_disable_dp_aux(struct apple_atcphy *atcphy)
 {
+	printk("HVLOG: atcphy_disable_dp_aux\n");
+
 	set32(atcphy->regs.lpdptx + LPDPTX_AUX_CONTROL, LPDPTX_AUX_PWN_DOWN);
 	set32(atcphy->regs.lpdptx + LPDPTX_AUX_CFG_BLK_AUX_CTRL,
 	      LPDPTX_BLK_AUX_CTRL_PWRDN);
@@ -1066,6 +1072,8 @@ atcphy_dp_configure_lane(struct apple_atcphy *atcphy, enum atcphy_lane lane,
 {
 	void __iomem *tx_shm, *rx_shm, *rx_top;
 	unsigned int tx_cal_code;
+
+	printk("HVLOG: atcphy_dp_configure_lane %d\n", lane);
 
 	BUG_ON(!mutex_is_locked(&atcphy->lock));
 
@@ -1321,6 +1329,8 @@ static int atcphy_auspll_apb_command(struct apple_atcphy *atcphy, u32 command)
 	int ret;
 	u32 reg;
 
+	printk("HVLOG: atcphy_auspll_apb_command %d\n", command);
+
 	reg = readl(atcphy->regs.core + AUSPLL_APB_CMD_OVERRIDE);
 	reg &= ~AUSPLL_APB_CMD_OVERRIDE_CMD;
 	reg |= FIELD_PREP(AUSPLL_APB_CMD_OVERRIDE_CMD, command);
@@ -1351,6 +1361,8 @@ static int atcphy_dp_configure(struct apple_atcphy *atcphy,
 	const struct atcphy_mode_configuration *mode_cfg;
 	int ret;
 	u32 reg;
+
+	printk("HVLOG: atcphy_dp_configure %d\n", lr);
 
 	if (atcphy->dp_link_rate == lr)
 		return 0;
@@ -1468,6 +1480,8 @@ static int atcphy_power_off(struct apple_atcphy *atcphy)
 	u32 reg;
 	int ret;
 
+	printk("HVLOG: atcphy_power_off\n");
+
 	atcphy_disable_dp_aux(atcphy);
 
 	/* enable all reset lines */
@@ -1502,6 +1516,8 @@ static int atcphy_power_on(struct apple_atcphy *atcphy)
 	u32 reg;
 	int ret;
 
+	printk("HVLOG: atcphy_power_on\n");
+
 	core_set32(atcphy, ATCPHY_MISC, ATCPHY_MISC_RESET_N);
 
 	// TODO: why set?! see above
@@ -1532,6 +1548,8 @@ static int atcphy_configure(struct apple_atcphy *atcphy, enum atcphy_mode mode)
 	int ret;
 
 	BUG_ON(!mutex_is_locked(&atcphy->lock));
+
+	printk("HVLOG: atcphy_configure %d\n", mode);
 
 	ret = atcphy_power_on(atcphy);
 	if (ret)
@@ -2286,6 +2304,8 @@ static int atcphy_mux_set(struct typec_mux_dev *mux,
 	struct apple_atcphy *atcphy = typec_mux_get_drvdata(mux);
 	trace_atcphy_mux_set(state);
 	guard(mutex)(&atcphy->lock);
+
+	printk("HVLOG: atcphy_mux_set %d\n", state->mode);
 
 	if (state->mode == TYPEC_STATE_SAFE) {
 		atcphy->target_mode = APPLE_ATCPHY_MODE_OFF;
