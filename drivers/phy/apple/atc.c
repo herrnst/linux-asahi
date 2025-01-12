@@ -411,9 +411,9 @@
 // 0x6 -> BIT(1) | BIT(2) -> rx detect?
 
 #define PIPEHANDLER_MUX_CTRL 0x0c
-#define PIPEHANDLER_MUX_CTRL_USB3 0x00
+#define PIPEHANDLER_MUX_CTRL_USB3 0x08
 #define PIPEHANDLER_MUX_CTRL_USB4_TUNNEL 0x11
-#define PIPEHANDLER_MUX_CTRL_USB2 0x22
+#define PIPEHANDLER_MUX_CTRL_DUMMY 0x22
 
 #define PIPEHANDLER_LOCK_REQ 0x10
 #define PIPEHANDLER_LOCK_ACK 0x14
@@ -456,7 +456,7 @@ enum atcphy_dp_link_rate {
 
 enum atcphy_pipehandler_state {
 	ATCPHY_PIPEHANDLER_STATE_INVALID,
-	ATCPHY_PIPEHANDLER_STATE_USB2,
+	ATCPHY_PIPEHANDLER_STATE_DUMMY,
 	ATCPHY_PIPEHANDLER_STATE_USB3,
 	ATCPHY_PIPEHANDLER_STATE_USB4,
 };
@@ -586,7 +586,7 @@ static const struct {
 			.set_swap = false, /* doesn't matter since the SS lanes are off */
 		},
 		.enable_dp_aux = false,
-		.pipehandler_state = ATCPHY_PIPEHANDLER_STATE_USB2,
+		.pipehandler_state = ATCPHY_PIPEHANDLER_STATE_DUMMY,
 	},
 	[APPLE_ATCPHY_MODE_USB2] = {
 		.normal = {
@@ -606,7 +606,7 @@ static const struct {
 			.set_swap = false, /* doesn't matter since the SS lanes are off */
 		},
 		.enable_dp_aux = false,
-		.pipehandler_state = ATCPHY_PIPEHANDLER_STATE_USB2,
+		.pipehandler_state = ATCPHY_PIPEHANDLER_STATE_DUMMY,
 	},
 	[APPLE_ATCPHY_MODE_USB3] = {
 		.normal = {
@@ -666,7 +666,7 @@ static const struct {
 			.set_swap = false, /* intentionally false */
 		},
 		.enable_dp_aux = false,
-		.pipehandler_state = ATCPHY_PIPEHANDLER_STATE_USB2,
+		.pipehandler_state = ATCPHY_PIPEHANDLER_STATE_DUMMY,
 	},
 	[APPLE_ATCPHY_MODE_USB4] = {
 		.normal = {
@@ -706,7 +706,7 @@ static const struct {
 			.set_swap = false, /* intentionally false */
 		},
 		.enable_dp_aux = true,
-		.pipehandler_state = ATCPHY_PIPEHANDLER_STATE_USB2,
+		.pipehandler_state = ATCPHY_PIPEHANDLER_STATE_DUMMY,
 	},
 };
 
@@ -756,6 +756,9 @@ static const struct atcphy_dp_link_rate_configuration dp_lr_config[] = {
 		.txa_div2_en = false,
 	},
 };
+
+static void atcphy_configure_pipehandler_dummy(struct apple_atcphy *atcphy);
+static void atcphy_configure_pipehandler(struct apple_atcphy *atcphy);
 
 static inline void mask32(void __iomem *reg, u32 mask, u32 set)
 {
@@ -1693,6 +1696,31 @@ static int atcphy_usb2_set_mode(struct phy *phy, enum phy_mode mode,
 	}
 }
 
+static int atcphy_usb3_power_off(struct phy *phy)
+{
+	struct apple_atcphy *atcphy = phy_get_drvdata(phy);
+	guard(mutex)(&atcphy->lock);
+
+	atcphy_configure_pipehandler_dummy(atcphy);
+
+	return 0;
+}
+
+static int atcphy_usb3_power_on(struct phy *phy)
+{
+	struct apple_atcphy *atcphy = phy_get_drvdata(phy);
+	guard(mutex)(&atcphy->lock);
+
+	atcphy_configure_pipehandler(atcphy);
+	return 0;
+}
+
+static int atcphy_usb3_set_mode(struct phy *phy, enum phy_mode mode,
+				int submode)
+{
+	return 0;
+}
+
 static const struct phy_ops apple_atc_usb2_phy_ops = {
 	.owner = THIS_MODULE,
 	.set_mode = atcphy_usb2_set_mode,
@@ -1712,8 +1740,9 @@ static const struct phy_ops apple_atc_usb2_phy_ops = {
 // TODO: implement this for usb 3 (maybe)
 static const struct phy_ops apple_atc_usb3_phy_ops = {
 	.owner = THIS_MODULE,
-	//.power_on = atcphy_usb3_power_on,
-	//.power_off = atcphy_usb3_power_off,
+	.power_on = atcphy_usb3_power_on,
+	.power_off = atcphy_usb3_power_off,
+	.set_mode = atcphy_usb3_set_mode,
 };
 
 static int atcphy_dpphy_set_mode(struct phy *phy, enum phy_mode mode,
@@ -2248,7 +2277,7 @@ static void atcphy_configure_pipehandler_usb3(struct apple_atcphy *atcphy)
 	}
 }
 
-static void atcphy_configure_pipehandler_usb2(struct apple_atcphy *atcphy)
+static void atcphy_configure_pipehandler_dummy(struct apple_atcphy *atcphy)
 {
 	int ret;
 
@@ -2303,7 +2332,7 @@ static void atcphy_configure_pipehandler_usb2(struct apple_atcphy *atcphy)
 [Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_MUX_CTRL = 0x2 (MUX_MODE=2(UNK2), CLK_SELECT=0(UNK0))
 [Dwc3Tracer@/arm-io/usb-drd1] MMIO: W.4   PIPEHANDLER_MUX_CTRL = 0x22 (MUX_MODE=2(UNK2), CLK_SELECT=4(UNK4))
 */
-	writel(PIPEHANDLER_MUX_CTRL_USB2,
+	writel(PIPEHANDLER_MUX_CTRL_DUMMY,
 		atcphy->regs.pipehandler + PIPEHANDLER_MUX_CTRL);
 
 /*
@@ -2328,15 +2357,15 @@ static void atcphy_configure_pipehandler(struct apple_atcphy *atcphy)
 	case ATCPHY_PIPEHANDLER_STATE_INVALID:
 		dev_err(atcphy->dev, "ATCPHY_PIPEHANDLER_STATE_INVALID state requested; falling through to USB2\n");
 		fallthrough;
-	case ATCPHY_PIPEHANDLER_STATE_USB2:
-		atcphy_configure_pipehandler_usb2(atcphy);
+	case ATCPHY_PIPEHANDLER_STATE_DUMMY:
+		atcphy_configure_pipehandler_dummy(atcphy);
 		break;
 	case ATCPHY_PIPEHANDLER_STATE_USB3:
 		atcphy_configure_pipehandler_usb3(atcphy);
 		break;
 	case ATCPHY_PIPEHANDLER_STATE_USB4:
 		dev_err(atcphy->dev, "ATCPHY_PIPEHANDLER_STATE_USB4 not implemented; falling back to USB2\n");
-		atcphy_configure_pipehandler_usb2(atcphy);
+		atcphy_configure_pipehandler_dummy(atcphy);
 		break;
 	}
 }
@@ -2346,7 +2375,7 @@ static void atcphy_setup_pipehandler(struct apple_atcphy *atcphy)
 	BUG_ON(!mutex_is_locked(&atcphy->lock));
 	BUG_ON(atcphy->pipehandler_state != ATCPHY_PIPEHANDLER_STATE_INVALID);
 
-	writel(PIPEHANDLER_MUX_CTRL_USB2,
+	writel(PIPEHANDLER_MUX_CTRL_DUMMY,
 		atcphy->regs.pipehandler + PIPEHANDLER_MUX_CTRL);
 /*
 [Dwc3Tracer@/arm-io/usb-drd1] MMIO: R.4   PIPEHANDLER_NONSELECTED_OVERRIDE = 0x1332 (NATIVE_POWER_DOWN=0x2, NATIVE_RESET=1, DUMMY_PHY_EN=0)
@@ -2362,7 +2391,7 @@ static void atcphy_setup_pipehandler(struct apple_atcphy *atcphy)
 	set32(atcphy->regs.pipehandler + PIPEHANDLER_NONSELECTED_OVERRIDE,
 	      0x400);
 
-	atcphy->pipehandler_state = ATCPHY_PIPEHANDLER_STATE_USB2;
+	atcphy->pipehandler_state = ATCPHY_PIPEHANDLER_STATE_DUMMY;
 
 }
 
@@ -2432,7 +2461,6 @@ static int atcphy_mux_set(struct typec_mux_dev *mux,
 	}
 
 	atcphy_configure(atcphy, atcphy->target_mode);
-	atcphy_configure_pipehandler(atcphy);
 	atcphy->mode = atcphy->target_mode;
 
 	return 0;
