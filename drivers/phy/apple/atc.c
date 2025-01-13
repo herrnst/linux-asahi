@@ -759,7 +759,7 @@ static const struct atcphy_dp_link_rate_configuration dp_lr_config[] = {
 };
 
 static void atcphy_configure_pipehandler_dummy(struct apple_atcphy *atcphy);
-static void atcphy_configure_pipehandler(struct apple_atcphy *atcphy);
+static void atcphy_configure_pipehandler(struct apple_atcphy *atcphy, bool device_mode);
 
 static inline void mask32(void __iomem *reg, u32 mask, u32 set)
 {
@@ -1792,7 +1792,7 @@ static int atcphy_usb3_power_on(struct phy *phy)
 	if (atcphy->usb3_configure_pending)
 		atcphy_configure_usb3(atcphy);
 
-	atcphy_configure_pipehandler(atcphy);
+	atcphy_configure_pipehandler(atcphy, false);
 	atcphy->pipehandler_up = true;
 
 	return 0;
@@ -2198,7 +2198,7 @@ static int atcphy_pipehandler_check(struct apple_atcphy *atcphy)
 	return 0;
 }
 
-static void atcphy_configure_pipehandler_usb3(struct apple_atcphy *atcphy)
+static void atcphy_configure_pipehandler_usb3(struct apple_atcphy *atcphy, bool device_mode)
 {
 	int ret;
 	u32 reg;
@@ -2206,77 +2206,79 @@ static void atcphy_configure_pipehandler_usb3(struct apple_atcphy *atcphy)
 	if (atcphy_pipehandler_check(atcphy))
 		return;
 
-	/* Force disable link detection */
-	clear32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE_VALUES, PIPEHANDLER_OVERRIDE_VAL_RXDETECT0 | PIPEHANDLER_OVERRIDE_VAL_RXDETECT1);
-	set32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE, PIPEHANDLER_OVERRIDE_RXVALID);
-	set32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE, PIPEHANDLER_OVERRIDE_RXDETECT);
+	if (!device_mode) {
+		/* Force disable link detection */
+		clear32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE_VALUES, PIPEHANDLER_OVERRIDE_VAL_RXDETECT0 | PIPEHANDLER_OVERRIDE_VAL_RXDETECT1);
+		set32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE, PIPEHANDLER_OVERRIDE_RXVALID);
+		set32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE, PIPEHANDLER_OVERRIDE_RXDETECT);
 
-	ret = atcphy_pipehandler_lock(atcphy);
-	if (ret) {
-		dev_err(atcphy->dev, "Failed to lock pipehandler");
-		return;
+		ret = atcphy_pipehandler_lock(atcphy);
+		if (ret) {
+			dev_err(atcphy->dev, "Failed to lock pipehandler");
+			return;
+		}
+
+		/* BIST dance */
+
+		core_set32(atcphy, ACIOPHY_TOP_BIST_PHY_CFG0,
+			ACIOPHY_TOP_BIST_PHY_CFG0_LN0_RESET_N);
+		core_set32(atcphy, ACIOPHY_TOP_BIST_OV_CFG,
+			ACIOPHY_TOP_BIST_OV_CFG_LN0_RESET_N_OV);
+		ret = readl_poll_timeout(
+			atcphy->regs.core + ACIOPHY_TOP_PHY_STAT, reg,
+			!(reg & ACIOPHY_TOP_PHY_STAT_LN0_UNK23), 100, 100000);
+		if (ret)
+			dev_err(
+				atcphy->dev,
+				"timed out waiting for ACIOPHY_TOP_PHY_STAT_LN0_UNK23\n");
+
+		core_set32(atcphy, ACIOPHY_TOP_BIST_READ_CTRL,
+			ACIOPHY_TOP_BIST_READ_CTRL_LN0_PHY_STATUS_RE);
+		core_clear32(atcphy, ACIOPHY_TOP_BIST_READ_CTRL,
+			ACIOPHY_TOP_BIST_READ_CTRL_LN0_PHY_STATUS_RE);
+
+		core_mask32(atcphy, ACIOPHY_TOP_BIST_PHY_CFG1,
+			ACIOPHY_TOP_BIST_PHY_CFG1_LN0_PWR_DOWN,
+			FIELD_PREP(ACIOPHY_TOP_BIST_PHY_CFG1_LN0_PWR_DOWN,
+				3));
+
+		core_set32(atcphy, ACIOPHY_TOP_BIST_OV_CFG,
+			ACIOPHY_TOP_BIST_OV_CFG_LN0_PWR_DOWN_OV);
+		core_set32(atcphy, ACIOPHY_TOP_BIST_CIOPHY_CFG1,
+			ACIOPHY_TOP_BIST_CIOPHY_CFG1_CLK_EN);
+		core_set32(atcphy, ACIOPHY_TOP_BIST_CIOPHY_CFG1,
+			ACIOPHY_TOP_BIST_CIOPHY_CFG1_BIST_EN);
+		writel(0, atcphy->regs.core + ACIOPHY_TOP_BIST_CIOPHY_CFG1);
+
+
+		ret = readl_poll_timeout(
+			atcphy->regs.core + ACIOPHY_TOP_PHY_STAT, reg,
+			(reg & ACIOPHY_TOP_PHY_STAT_LN0_UNK0), 100, 100000);
+		if (ret)
+			dev_warn(
+				atcphy->dev,
+				"timed out waiting for ACIOPHY_TOP_PHY_STAT_LN0_UNK0\n");
+
+		ret = readl_poll_timeout(
+			atcphy->regs.core + ACIOPHY_TOP_PHY_STAT, reg,
+			!(reg & ACIOPHY_TOP_PHY_STAT_LN0_UNK23), 100, 100000);
+		if (ret)
+			dev_warn(
+				atcphy->dev,
+				"timed out waiting for ACIOPHY_TOP_PHY_STAT_LN0_UNK23\n");
+
+		/* Clear reset for non-selected USB3 PHY (?) */
+
+		mask32(atcphy->regs.pipehandler + PIPEHANDLER_NONSELECTED_OVERRIDE, PIPEHANDLER_NATIVE_POWER_DOWN, 0x3); // TOOD: FIELD_PREP
+		clear32(atcphy->regs.pipehandler + PIPEHANDLER_NONSELECTED_OVERRIDE, PIPEHANDLER_NATIVE_RESET);
+
+		/* More BIST stuff (?) */
+		writel(0, atcphy->regs.core + ACIOPHY_TOP_BIST_OV_CFG);
+		core_set32(atcphy, ACIOPHY_TOP_BIST_CIOPHY_CFG1,
+			ACIOPHY_TOP_BIST_CIOPHY_CFG1_CLK_EN);
+		core_set32(atcphy, ACIOPHY_TOP_BIST_CIOPHY_CFG1,
+			ACIOPHY_TOP_BIST_CIOPHY_CFG1_BIST_EN);
 	}
-
-	/* BIST dance */
-
-	core_set32(atcphy, ACIOPHY_TOP_BIST_PHY_CFG0,
-		   ACIOPHY_TOP_BIST_PHY_CFG0_LN0_RESET_N);
-	core_set32(atcphy, ACIOPHY_TOP_BIST_OV_CFG,
-		   ACIOPHY_TOP_BIST_OV_CFG_LN0_RESET_N_OV);
-	ret = readl_poll_timeout(
-		atcphy->regs.core + ACIOPHY_TOP_PHY_STAT, reg,
-		!(reg & ACIOPHY_TOP_PHY_STAT_LN0_UNK23), 100, 100000);
-	if (ret)
-		dev_err(
-			atcphy->dev,
-			"timed out waiting for ACIOPHY_TOP_PHY_STAT_LN0_UNK23\n");
-
-	core_set32(atcphy, ACIOPHY_TOP_BIST_READ_CTRL,
-		   ACIOPHY_TOP_BIST_READ_CTRL_LN0_PHY_STATUS_RE);
-	core_clear32(atcphy, ACIOPHY_TOP_BIST_READ_CTRL,
-		     ACIOPHY_TOP_BIST_READ_CTRL_LN0_PHY_STATUS_RE);
-
-	core_mask32(atcphy, ACIOPHY_TOP_BIST_PHY_CFG1,
-		    ACIOPHY_TOP_BIST_PHY_CFG1_LN0_PWR_DOWN,
-		    FIELD_PREP(ACIOPHY_TOP_BIST_PHY_CFG1_LN0_PWR_DOWN,
-			       3));
-
-	core_set32(atcphy, ACIOPHY_TOP_BIST_OV_CFG,
-		   ACIOPHY_TOP_BIST_OV_CFG_LN0_PWR_DOWN_OV);
-	core_set32(atcphy, ACIOPHY_TOP_BIST_CIOPHY_CFG1,
-		   ACIOPHY_TOP_BIST_CIOPHY_CFG1_CLK_EN);
-	core_set32(atcphy, ACIOPHY_TOP_BIST_CIOPHY_CFG1,
-		   ACIOPHY_TOP_BIST_CIOPHY_CFG1_BIST_EN);
-	writel(0, atcphy->regs.core + ACIOPHY_TOP_BIST_CIOPHY_CFG1);
-
-
-	ret = readl_poll_timeout(
-		atcphy->regs.core + ACIOPHY_TOP_PHY_STAT, reg,
-		(reg & ACIOPHY_TOP_PHY_STAT_LN0_UNK0), 100, 100000);
-	if (ret)
-		dev_warn(
-			atcphy->dev,
-			"timed out waiting for ACIOPHY_TOP_PHY_STAT_LN0_UNK0\n");
-
-	ret = readl_poll_timeout(
-		atcphy->regs.core + ACIOPHY_TOP_PHY_STAT, reg,
-		!(reg & ACIOPHY_TOP_PHY_STAT_LN0_UNK23), 100, 100000);
-	if (ret)
-		dev_warn(
-			atcphy->dev,
-			"timed out waiting for ACIOPHY_TOP_PHY_STAT_LN0_UNK23\n");
-
-	/* Clear reset for non-selected USB3 PHY (?) */
-
-	mask32(atcphy->regs.pipehandler + PIPEHANDLER_NONSELECTED_OVERRIDE, PIPEHANDLER_NATIVE_POWER_DOWN, 0x3); // TOOD: FIELD_PREP
-	clear32(atcphy->regs.pipehandler + PIPEHANDLER_NONSELECTED_OVERRIDE, PIPEHANDLER_NATIVE_RESET);
-
-	/* More BIST stuff (?) */
-	writel(0, atcphy->regs.core + ACIOPHY_TOP_BIST_OV_CFG);
-	core_set32(atcphy, ACIOPHY_TOP_BIST_CIOPHY_CFG1,
-		   ACIOPHY_TOP_BIST_CIOPHY_CFG1_CLK_EN);
-	core_set32(atcphy, ACIOPHY_TOP_BIST_CIOPHY_CFG1,
-		   ACIOPHY_TOP_BIST_CIOPHY_CFG1_BIST_EN);
 
 	/* Configure PIPE mux to USB3 PHY */
 	writel(PIPEHANDLER_MUX_CTRL_USB3,
@@ -2287,10 +2289,12 @@ static void atcphy_configure_pipehandler_usb3(struct apple_atcphy *atcphy)
 	clear32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE, PIPEHANDLER_OVERRIDE_RXVALID);
 	clear32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE, PIPEHANDLER_OVERRIDE_RXDETECT);
 
-	ret = atcphy_pipehandler_unlock(atcphy);
-	if (ret) {
-		dev_err(atcphy->dev, "Failed to unlock pipehandler");
-		return;
+	if (!device_mode) {
+		ret = atcphy_pipehandler_unlock(atcphy);
+		if (ret) {
+			dev_err(atcphy->dev, "Failed to unlock pipehandler");
+			return;
+		}
 	}
 }
 
@@ -2323,7 +2327,7 @@ static void atcphy_configure_pipehandler_dummy(struct apple_atcphy *atcphy)
 	}
 }
 
-static void atcphy_configure_pipehandler(struct apple_atcphy *atcphy)
+static void atcphy_configure_pipehandler(struct apple_atcphy *atcphy, bool device_mode)
 {
 	BUG_ON(!mutex_is_locked(&atcphy->lock));
 
@@ -2335,7 +2339,7 @@ static void atcphy_configure_pipehandler(struct apple_atcphy *atcphy)
 		atcphy_configure_pipehandler_dummy(atcphy);
 		break;
 	case ATCPHY_PIPEHANDLER_STATE_USB3:
-		atcphy_configure_pipehandler_usb3(atcphy);
+		atcphy_configure_pipehandler_usb3(atcphy, device_mode);
 		break;
 	case ATCPHY_PIPEHANDLER_STATE_USB4:
 		dev_err(atcphy->dev, "ATCPHY_PIPEHANDLER_STATE_USB4 not implemented; falling back to USB2\n");
