@@ -6,4 +6,7 @@
 //int avep_audiosrv_startlink(struct apple_dcp *dcp, struct dcp_sound_cookie *cookie);
 //int avep_audiosrv_stoplink(struct apple_dcp *dcp);
 
+void av_service_start(struct apple_dcp *dcp);
+void av_service_stop(struct apple_dcp *dcp);
+
 #endif /* __AV_H__ */

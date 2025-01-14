@@ -13,12 +13,14 @@
 
 #include "audio.h"
 #include "afk.h"
+#include "av.h"
 #include "dcp.h"
 #include "dcp-internal.h"
 
 struct dcp_av_audio_cmds {
 	/* commands in group 0*/
 	u32 open;
+	u32 close;
 	u32 prepare;
 	u32 start_link;
 	u32 stop_link;
@@ -30,6 +32,7 @@ struct dcp_av_audio_cmds {
 
 static const struct dcp_av_audio_cmds dcp_av_audio_cmds_v12_3 = {
 	.open = 6,
+	.close = 7,
 	.prepare = 8,
 	.start_link = 9,
 	.stop_link = 12,
@@ -40,6 +43,7 @@ static const struct dcp_av_audio_cmds dcp_av_audio_cmds_v12_3 = {
 
 static const struct dcp_av_audio_cmds dcp_av_audio_cmds_v13_5 = {
 	.open = 4,
+	.close = 5,
 	.prepare = 6,
 	.start_link = 7,
 	.stop_link = 10,
@@ -62,6 +66,7 @@ struct audiosrv_data {
 
 	bool warned_get_elements;
 	bool warned_get_product_attrs;
+	bool is_open;
 };
 
 static void av_interface_init(struct apple_epic_service *service, const char *name,
@@ -283,9 +288,57 @@ static const struct apple_epic_service_ops avep_ops[] = {
 	{}
 };
 
+void av_service_start(struct apple_dcp *dcp)
+{
+	struct audiosrv_data *asrv = dcp->audiosrv;
+	int ret;
+
+	/* open AV audio service */
+	dev_info(dcp->dev, "%s: starting audio service, plugged:%d\n", __func__,  asrv->plugged);
+	if (asrv->is_open)
+		return;
+
+	ret = afk_service_call(dcp->audiosrv->srv, 0, dcp->audiosrv->cmds.open,
+			       NULL, 0, 32, NULL, 0, 32);
+	if (ret) {
+		dev_err(dcp->dev, "error opening audio service: %d\n", ret);
+		return;
+	}
+	mutex_lock(&dcp->audiosrv->plug_lock);
+	asrv->is_open = true;
+
+	if (dcp->audiosrv->audio_dev)
+		dcpaud_connect(dcp->audiosrv->audio_dev, dcp->audiosrv->plugged);
+	mutex_unlock(&dcp->audiosrv->plug_lock);
+}
+
+void av_service_stop(struct apple_dcp *dcp)
+{
+	struct audiosrv_data *asrv = dcp->audiosrv;
+	int ret;
+
+	/* close AV audio service */
+	dev_info(dcp->dev, "%s: stopping audio service\n", __func__);
+	if (!asrv->is_open)
+		return;
+
+	mutex_lock(&asrv->plug_lock);
+
+	if (asrv->audio_dev)
+		dcpaud_disconnect(asrv->audio_dev);
+
+	mutex_unlock(&asrv->plug_lock);
+
+	ret = afk_service_call(dcp->audiosrv->srv, 0, dcp->audiosrv->cmds.close,
+			       NULL, 0, 32, NULL, 0, 32);
+	if (ret) {
+		dev_err(dcp->dev, "error closing audio service: %d\n", ret);
+	}
+	asrv->is_open = false;
+}
+
 static void av_work_service_start(struct work_struct *work)
 {
-	int ret;
 	struct audiosrv_data *audiosrv_data;
 	struct apple_dcp *dcp;
 
@@ -298,19 +351,7 @@ static void av_work_service_start(struct work_struct *work)
 	}
 	dcp = audiosrv_data->srv->ep->dcp;
 
-	/* open AV audio service */
-	dev_info(dcp->dev, "%s: starting audio service\n", __func__);
-	ret = afk_service_call(dcp->audiosrv->srv, 0, dcp->audiosrv->cmds.open,
-			       NULL, 0, 32, NULL, 0, 32);
-	if (ret) {
-		dev_err(dcp->dev, "error opening audio service: %d\n", ret);
-		return;
-	}
-
-	mutex_lock(&dcp->audiosrv->plug_lock);
-	if (dcp->audiosrv->audio_dev)
-		dcpaud_connect(dcp->audiosrv->audio_dev, dcp->audiosrv->plugged);
-	mutex_unlock(&dcp->audiosrv->plug_lock);
+	av_service_start(dcp);
 }
 
 int avep_init(struct apple_dcp *dcp)

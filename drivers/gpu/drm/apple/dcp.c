@@ -31,6 +31,7 @@
 #include <drm/drm_vblank.h>
 
 #include "afk.h"
+#include "av.h"
 #include "dcp.h"
 #include "dcp-internal.h"
 #include "iomfb.h"
@@ -619,6 +620,9 @@ void dcp_poweron(struct platform_device *pdev)
 			dcp_dptx_connect(dcp, 0);
 	}
 
+	if (dcp->avep)
+		av_service_start(dcp);
+
 	switch (dcp->fw_compat) {
 	case DCP_FIRMWARE_V_12_3:
 		iomfb_poweron_v12_3(dcp);
@@ -648,6 +652,9 @@ void dcp_poweroff(struct platform_device *pdev)
 		WARN_ONCE(true, "Unexpected firmware version: %u\n", dcp->fw_compat);
 		break;
 	}
+
+	if (dcp->avep)
+		av_service_stop(dcp);
 
 	if (dcp->hdmi_hpd) {
 		bool connected = gpiod_get_value_cansleep(dcp->hdmi_hpd);
@@ -1075,6 +1082,7 @@ static void dcp_comp_unbind(struct device *dev, struct device *main, void *data)
 		disable_irq(dcp->hdmi_hpd_irq);
 
 	if (dcp->avep) {
+		av_service_stop(dcp);
 		afk_shutdown(dcp->avep);
 		dcp->avep = NULL;
 	}
