@@ -1395,6 +1395,7 @@ struct dwc3 {
 
 	unsigned		role_switch_reset_quirk:1;
 	unsigned		no_early_roothub_poweroff:1;
+	unsigned		synchronous_drd_switch:1;
 
 	u16			imod_interval;
 
