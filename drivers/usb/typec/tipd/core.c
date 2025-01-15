@@ -219,6 +219,8 @@ static void cd321x_typec_update_mode(struct tps6598x *tps, struct tps6598x_statu
 	 */
 	printk("HVLOG: cd321x_typec_update_mode: data_status 0x%lx partner %p\n", (long)tps->data_status, tps->partner);
 
+	tps->state.data_role = (st->data_status & TPS_DATA_STATUS_USB_DATA_ROLE) ? TYPEC_DEVICE : TYPEC_HOST;
+
 	if (!(st->data_status & TPS_DATA_STATUS_DATA_CONNECTION)) {
 		if (tps->state.mode == TYPEC_STATE_SAFE)
 			return;
@@ -226,7 +228,7 @@ static void cd321x_typec_update_mode(struct tps6598x *tps, struct tps6598x_statu
 		tps->state.mode = TYPEC_STATE_SAFE;
 		tps->state.data = NULL;
 		printk("typec_set_mode: SAFE\n");
-		typec_set_mode(tps->port, TYPEC_STATE_SAFE);
+		typec_mux_set(tps->mux, &tps->state);
 	} else if (st->data_status & TPS_DATA_STATUS_DP_CONNECTION) {
 		struct typec_displayport_data dp_data;
 		unsigned long mode;
@@ -304,7 +306,7 @@ static void cd321x_typec_update_mode(struct tps6598x *tps, struct tps6598x_statu
 		tps->state.mode = TYPEC_STATE_USB;
 		tps->state.data = NULL;
 		printk("typec_set_mode: USB\n");
-		typec_set_mode(tps->port, TYPEC_STATE_USB);
+		typec_mux_set(tps->mux, &tps->state);
 		printk("typec_set_mode: USB DONE\n");
 	}
 }
