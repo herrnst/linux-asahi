@@ -293,6 +293,9 @@ void av_service_start(struct apple_dcp *dcp)
 	struct audiosrv_data *asrv = dcp->audiosrv;
 	int ret;
 
+	if (!asrv->srv)
+		return;
+
 	/* open AV audio service */
 	dev_info(dcp->dev, "%s: starting audio service, plugged:%d\n", __func__,  asrv->plugged);
 	if (asrv->is_open)
@@ -316,6 +319,9 @@ void av_service_stop(struct apple_dcp *dcp)
 {
 	struct audiosrv_data *asrv = dcp->audiosrv;
 	int ret;
+
+	if (!asrv->srv)
+		return;
 
 	/* close AV audio service */
 	dev_info(dcp->dev, "%s: stopping audio service\n", __func__);
