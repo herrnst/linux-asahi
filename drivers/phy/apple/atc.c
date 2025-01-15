@@ -1740,6 +1740,9 @@ static int atcphy_usb2_set_mode(struct phy *phy, enum phy_mode mode,
 
 	printk("HVLOG: atcphy_usb2_set_mode: %d %d\n", mode, submode);
 
+	if (atcphy->pipehandler_up)
+		return 0;
+
 	switch (mode) {
 	case PHY_MODE_USB_HOST:
 	case PHY_MODE_USB_HOST_LS:
@@ -1749,6 +1752,8 @@ static int atcphy_usb2_set_mode(struct phy *phy, enum phy_mode mode,
 		set32(atcphy->regs.usb2phy + USB2PHY_SIG, USB2PHY_SIG_HOST);
 		writel(USB2PHY_USBCTL_RUN,
 		       atcphy->regs.usb2phy + USB2PHY_USBCTL);
+		atcphy_configure_pipehandler(atcphy, false);
+		atcphy->pipehandler_up = true;
 		return 0;
 
 	case PHY_MODE_USB_DEVICE:
@@ -1759,6 +1764,8 @@ static int atcphy_usb2_set_mode(struct phy *phy, enum phy_mode mode,
 		clear32(atcphy->regs.usb2phy + USB2PHY_SIG, USB2PHY_SIG_HOST);
 		writel(USB2PHY_USBCTL_RUN,
 		       atcphy->regs.usb2phy + USB2PHY_USBCTL);
+		atcphy_configure_pipehandler(atcphy, true);
+		atcphy->pipehandler_up = true;
 		return 0;
 
 	default:
@@ -1792,15 +1799,15 @@ static int atcphy_usb3_power_on(struct phy *phy)
 	if (atcphy->usb3_configure_pending)
 		atcphy_configure_usb3(atcphy);
 
-	atcphy_configure_pipehandler(atcphy, false);
-	atcphy->pipehandler_up = true;
-
 	return 0;
 }
 
 static int atcphy_usb3_set_mode(struct phy *phy, enum phy_mode mode,
 				int submode)
 {
+	struct apple_atcphy *atcphy = phy_get_drvdata(phy);
+	guard(mutex)(&atcphy->lock);
+
 	printk("HVLOG: atcphy_usb3_set_mode: %d %d\n", mode, submode);
 
 	return 0;
