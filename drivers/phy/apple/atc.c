@@ -411,9 +411,16 @@
 // 0x6 -> BIT(1) | BIT(2) -> rx detect?
 
 #define PIPEHANDLER_MUX_CTRL 0x0c
-#define PIPEHANDLER_MUX_CTRL_USB3 0x08
-#define PIPEHANDLER_MUX_CTRL_USB4_TUNNEL 0x11
-#define PIPEHANDLER_MUX_CTRL_DUMMY 0x22
+#define PIPEHANDLED_MUX_CTRL_CLK GENMASK(5, 3)
+#define PIPEHANDLED_MUX_CTRL_DATA GENMASK(2, 0)
+#define PIPEHANDLED_MUX_CTRL_CLK_OFF 0
+#define PIPEHANDLED_MUX_CTRL_CLK_USB3 1
+#define PIPEHANDLED_MUX_CTRL_CLK_USB4 2
+#define PIPEHANDLED_MUX_CTRL_CLK_DUMMY 4
+
+#define PIPEHANDLED_MUX_CTRL_DATA_USB3 0
+#define PIPEHANDLED_MUX_CTRL_DATA_USB4 1
+#define PIPEHANDLED_MUX_CTRL_DATA_DUMMY 2
 
 #define PIPEHANDLER_LOCK_REQ 0x10
 #define PIPEHANDLER_LOCK_ACK 0x14
@@ -1567,6 +1574,9 @@ static int atcphy_power_on(struct apple_atcphy *atcphy)
 	core_clear32(atcphy, ATCPHY_POWER_CTRL, ATCPHY_POWER_CLAMP_EN);
 	core_set32(atcphy, ATCPHY_POWER_CTRL, ATCPHY_POWER_APB_RESET_N);
 
+	set32(atcphy->regs.pipehandler + PIPEHANDLER_NONSELECTED_OVERRIDE,
+	      PIPEHANDLER_DUMMY_PHY_EN);
+
 	return 0;
 }
 
@@ -1711,11 +1721,8 @@ static int atcphy_usb2_power_on(struct phy *phy)
 	return 0;
 }
 
-static int atcphy_usb2_power_off(struct phy *phy)
+static void _atcphy_usb2_power_off(struct apple_atcphy *atcphy)
 {
-	struct apple_atcphy *atcphy = phy_get_drvdata(phy);
-	guard(mutex)(&atcphy->lock);
-
 	printk("HVLOG: atcphy_usb2_power_off\n");
 
 	writel(USB2PHY_USBCTL_ISOLATION,
@@ -1728,6 +1735,14 @@ static int atcphy_usb2_power_off(struct phy *phy)
 	set32(atcphy->regs.usb2phy + USB2PHY_CTL,
 	      USB2PHY_CTL_RESET | USB2PHY_CTL_PORT_RESET);
 	clear32(atcphy->regs.usb2phy + USB2PHY_CTL, USB2PHY_CTL_APB_RESET_N);
+}
+
+static int atcphy_usb2_power_off(struct phy *phy)
+{
+	struct apple_atcphy *atcphy = phy_get_drvdata(phy);
+	guard(mutex)(&atcphy->lock);
+
+	_atcphy_usb2_power_off(atcphy);
 
 	return 0;
 }
@@ -1740,8 +1755,6 @@ static int atcphy_usb2_set_mode(struct phy *phy, enum phy_mode mode,
 
 	printk("HVLOG: atcphy_usb2_set_mode: %d %d\n", mode, submode);
 
-	if (atcphy->pipehandler_up)
-		return 0;
 
 	switch (mode) {
 	case PHY_MODE_USB_HOST:
@@ -1752,7 +1765,8 @@ static int atcphy_usb2_set_mode(struct phy *phy, enum phy_mode mode,
 		set32(atcphy->regs.usb2phy + USB2PHY_SIG, USB2PHY_SIG_HOST);
 		writel(USB2PHY_USBCTL_RUN,
 		       atcphy->regs.usb2phy + USB2PHY_USBCTL);
-		atcphy_configure_pipehandler(atcphy, false);
+		if (!atcphy->pipehandler_up)
+			atcphy_configure_pipehandler(atcphy, false);
 		atcphy->pipehandler_up = true;
 		return 0;
 
@@ -1764,7 +1778,8 @@ static int atcphy_usb2_set_mode(struct phy *phy, enum phy_mode mode,
 		clear32(atcphy->regs.usb2phy + USB2PHY_SIG, USB2PHY_SIG_HOST);
 		writel(USB2PHY_USBCTL_RUN,
 		       atcphy->regs.usb2phy + USB2PHY_USBCTL);
-		atcphy_configure_pipehandler(atcphy, true);
+		if (!atcphy->pipehandler_up)
+			atcphy_configure_pipehandler(atcphy, true);
 		atcphy->pipehandler_up = true;
 		return 0;
 
@@ -2101,18 +2116,25 @@ static int atcphy_probe_phy(struct apple_atcphy *atcphy)
 	return 0;
 }
 
-static int atcphy_dwc3_reset_assert(struct reset_controller_dev *rcdev,
-				    unsigned long id)
+static void _atcphy_dwc3_reset_assert(struct apple_atcphy *atcphy)
 {
-	struct apple_atcphy *atcphy =
-		container_of(rcdev, struct apple_atcphy, rcdev);
-
 	printk("HVLOG: dwc3 reset assert\n");
 
 	clear32(atcphy->regs.pipehandler + PIPEHANDLER_AON_GEN,
 		PIPEHANDLER_AON_GEN_DWC3_RESET_N);
 	set32(atcphy->regs.pipehandler + PIPEHANDLER_AON_GEN,
 	      PIPEHANDLER_AON_GEN_DWC3_FORCE_CLAMP_EN);
+}
+
+static int atcphy_dwc3_reset_assert(struct reset_controller_dev *rcdev,
+				    unsigned long id)
+{
+	struct apple_atcphy *atcphy =
+		container_of(rcdev, struct apple_atcphy, rcdev);
+
+	guard(mutex)(&atcphy->lock);
+
+	_atcphy_dwc3_reset_assert(atcphy);
 
 	return 0;
 }
@@ -2122,6 +2144,8 @@ static int atcphy_dwc3_reset_deassert(struct reset_controller_dev *rcdev,
 {
 	struct apple_atcphy *atcphy =
 		container_of(rcdev, struct apple_atcphy, rcdev);
+
+	guard(mutex)(&atcphy->lock);
 
 	printk("HVLOG: dwc3 reset deassert\n");
 
@@ -2288,9 +2312,15 @@ static void atcphy_configure_pipehandler_usb3(struct apple_atcphy *atcphy, bool 
 	}
 
 	/* Configure PIPE mux to USB3 PHY */
-	writel(PIPEHANDLER_MUX_CTRL_USB3,
-		atcphy->regs.pipehandler + PIPEHANDLER_MUX_CTRL);
-
+	mask32(atcphy->regs.pipehandler + PIPEHANDLER_MUX_CTRL, PIPEHANDLED_MUX_CTRL_CLK,
+	       FIELD_PREP(PIPEHANDLED_MUX_CTRL_CLK, PIPEHANDLED_MUX_CTRL_CLK_OFF));
+	udelay(10);
+	mask32(atcphy->regs.pipehandler + PIPEHANDLER_MUX_CTRL, PIPEHANDLED_MUX_CTRL_DATA,
+	       FIELD_PREP(PIPEHANDLED_MUX_CTRL_DATA, PIPEHANDLED_MUX_CTRL_DATA_USB3));
+	udelay(10);
+	mask32(atcphy->regs.pipehandler + PIPEHANDLER_MUX_CTRL, PIPEHANDLED_MUX_CTRL_CLK,
+	       FIELD_PREP(PIPEHANDLED_MUX_CTRL_CLK, PIPEHANDLED_MUX_CTRL_CLK_USB3));
+	udelay(10);
 
 	/* Remove link detection override */
 	clear32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE, PIPEHANDLER_OVERRIDE_RXVALID);
@@ -2324,8 +2354,15 @@ static void atcphy_configure_pipehandler_dummy(struct apple_atcphy *atcphy)
 	}
 
 	/* Switch to dummy PHY */
-	writel(PIPEHANDLER_MUX_CTRL_DUMMY,
-		atcphy->regs.pipehandler + PIPEHANDLER_MUX_CTRL);
+	mask32(atcphy->regs.pipehandler + PIPEHANDLER_MUX_CTRL, PIPEHANDLED_MUX_CTRL_CLK,
+	       FIELD_PREP(PIPEHANDLED_MUX_CTRL_CLK, PIPEHANDLED_MUX_CTRL_CLK_OFF));
+	udelay(10);
+	mask32(atcphy->regs.pipehandler + PIPEHANDLER_MUX_CTRL, PIPEHANDLED_MUX_CTRL_DATA,
+	       FIELD_PREP(PIPEHANDLED_MUX_CTRL_DATA, PIPEHANDLED_MUX_CTRL_DATA_DUMMY));
+	udelay(10);
+	mask32(atcphy->regs.pipehandler + PIPEHANDLER_MUX_CTRL, PIPEHANDLED_MUX_CTRL_CLK,
+	       FIELD_PREP(PIPEHANDLED_MUX_CTRL_CLK, PIPEHANDLED_MUX_CTRL_CLK_DUMMY));
+	udelay(10);
 
 	ret = atcphy_pipehandler_unlock(atcphy);
 	if (ret) {
@@ -2360,8 +2397,15 @@ static void atcphy_setup_pipehandler(struct apple_atcphy *atcphy)
 	BUG_ON(!mutex_is_locked(&atcphy->lock));
 	BUG_ON(atcphy->pipehandler_state != ATCPHY_PIPEHANDLER_STATE_INVALID);
 
-	writel(PIPEHANDLER_MUX_CTRL_DUMMY,
-		atcphy->regs.pipehandler + PIPEHANDLER_MUX_CTRL);
+	mask32(atcphy->regs.pipehandler + PIPEHANDLER_MUX_CTRL, PIPEHANDLED_MUX_CTRL_CLK,
+	       FIELD_PREP(PIPEHANDLED_MUX_CTRL_CLK, PIPEHANDLED_MUX_CTRL_CLK_OFF));
+	udelay(10);
+	mask32(atcphy->regs.pipehandler + PIPEHANDLER_MUX_CTRL, PIPEHANDLED_MUX_CTRL_DATA,
+	       FIELD_PREP(PIPEHANDLED_MUX_CTRL_DATA, PIPEHANDLED_MUX_CTRL_DATA_DUMMY));
+	udelay(10);
+	mask32(atcphy->regs.pipehandler + PIPEHANDLER_MUX_CTRL, PIPEHANDLED_MUX_CTRL_CLK,
+	       FIELD_PREP(PIPEHANDLED_MUX_CTRL_CLK, PIPEHANDLED_MUX_CTRL_CLK_DUMMY));
+	udelay(10);
 
 	set32(atcphy->regs.pipehandler + PIPEHANDLER_NONSELECTED_OVERRIDE,
 	      PIPEHANDLER_DUMMY_PHY_EN);
@@ -2746,13 +2790,19 @@ static int atcphy_probe(struct platform_device *pdev)
 	atcphy->mode = APPLE_ATCPHY_MODE_OFF;
 	atcphy->pipehandler_state = ATCPHY_PIPEHANDLER_STATE_INVALID;
 
+
 	mutex_lock(&atcphy->lock);
+	/* Reset dwc3 on probe, let dwc3 (consumer) deassert it */
+	_atcphy_dwc3_reset_assert(atcphy);
+	/* Power down the USB2 PHY */
+	_atcphy_usb2_power_off(atcphy);
+	atcphy_power_off(atcphy);
+	atcphy_setup_pipehandler(atcphy);
+
 	if (atcphy->hw->dp_only)
 		ret = atcphy_probe_dp_only(atcphy);
 	else
 		ret = atcphy_probe_all(atcphy);
-
-	atcphy_setup_pipehandler(atcphy);
 	mutex_unlock(&atcphy->lock);
 
 	return ret;
