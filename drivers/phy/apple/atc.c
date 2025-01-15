@@ -543,7 +543,7 @@ struct apple_atcphy {
 	bool swap_lanes;
 	int dp_link_rate;
 	bool pipehandler_up;
-	bool pipehandler_is_host_mode;
+	bool is_host_mode;
 	bool usb3_configure_pending;
 
 	struct {
@@ -767,7 +767,7 @@ static const struct atcphy_dp_link_rate_configuration dp_lr_config[] = {
 };
 
 static void atcphy_configure_pipehandler_dummy(struct apple_atcphy *atcphy);
-static void atcphy_configure_pipehandler(struct apple_atcphy *atcphy, bool device_mode);
+static void atcphy_configure_pipehandler(struct apple_atcphy *atcphy);
 
 static inline void mask32(void __iomem *reg, u32 mask, u32 set)
 {
@@ -1756,7 +1756,6 @@ static int atcphy_usb2_set_mode(struct phy *phy, enum phy_mode mode,
 
 	printk("HVLOG: atcphy_usb2_set_mode: %d %d\n", mode, submode);
 
-
 	switch (mode) {
 	case PHY_MODE_USB_HOST:
 	case PHY_MODE_USB_HOST_LS:
@@ -1766,9 +1765,6 @@ static int atcphy_usb2_set_mode(struct phy *phy, enum phy_mode mode,
 		set32(atcphy->regs.usb2phy + USB2PHY_SIG, USB2PHY_SIG_HOST);
 		writel(USB2PHY_USBCTL_RUN,
 		       atcphy->regs.usb2phy + USB2PHY_USBCTL);
-		if (!atcphy->pipehandler_up)
-			atcphy_configure_pipehandler(atcphy, false);
-		atcphy->pipehandler_up = true;
 		return 0;
 
 	case PHY_MODE_USB_DEVICE:
@@ -1779,9 +1775,6 @@ static int atcphy_usb2_set_mode(struct phy *phy, enum phy_mode mode,
 		clear32(atcphy->regs.usb2phy + USB2PHY_SIG, USB2PHY_SIG_HOST);
 		writel(USB2PHY_USBCTL_RUN,
 		       atcphy->regs.usb2phy + USB2PHY_USBCTL);
-		if (!atcphy->pipehandler_up)
-			atcphy_configure_pipehandler(atcphy, true);
-		atcphy->pipehandler_up = true;
 		return 0;
 
 	default:
@@ -1814,6 +1807,10 @@ static int atcphy_usb3_power_on(struct phy *phy)
 
 	if (atcphy->usb3_configure_pending)
 		atcphy_configure_usb3(atcphy);
+
+	if (!atcphy->pipehandler_up)
+		atcphy_configure_pipehandler(atcphy);
+	atcphy->pipehandler_up = true;
 
 	return 0;
 }
@@ -2230,7 +2227,7 @@ static int atcphy_pipehandler_check(struct apple_atcphy *atcphy)
 	return 0;
 }
 
-static void atcphy_configure_pipehandler_usb3(struct apple_atcphy *atcphy, bool device_mode)
+static void atcphy_configure_pipehandler_usb3(struct apple_atcphy *atcphy)
 {
 	int ret;
 	u32 reg;
@@ -2238,9 +2235,7 @@ static void atcphy_configure_pipehandler_usb3(struct apple_atcphy *atcphy, bool 
 	if (atcphy_pipehandler_check(atcphy))
 		return;
 
-	if (!device_mode) {
-		atcphy->pipehandler_is_host_mode = true;
-
+	if (atcphy->is_host_mode) {
 		/* Force disable link detection */
 		clear32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE_VALUES, PIPEHANDLER_OVERRIDE_VAL_RXDETECT0 | PIPEHANDLER_OVERRIDE_VAL_RXDETECT1);
 		set32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE, PIPEHANDLER_OVERRIDE_RXVALID);
@@ -2329,7 +2324,7 @@ static void atcphy_configure_pipehandler_usb3(struct apple_atcphy *atcphy, bool 
 	clear32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE, PIPEHANDLER_OVERRIDE_RXVALID);
 	clear32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE, PIPEHANDLER_OVERRIDE_RXDETECT);
 
-	if (!device_mode) {
+	if (atcphy->is_host_mode) {
 		ret = atcphy_pipehandler_unlock(atcphy);
 		if (ret) {
 			dev_err(atcphy->dev, "Failed to unlock pipehandler");
@@ -2350,7 +2345,7 @@ static void atcphy_configure_pipehandler_dummy(struct apple_atcphy *atcphy)
 	set32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE, PIPEHANDLER_OVERRIDE_RXVALID);
 	set32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE, PIPEHANDLER_OVERRIDE_RXDETECT);
 
-	if (atcphy->pipehandler_is_host_mode) {
+	if (atcphy->is_host_mode) {
 		ret = atcphy_pipehandler_lock(atcphy);
 		if (ret) {
 			dev_err(atcphy->dev, "Failed to lock pipehandler");
@@ -2369,18 +2364,16 @@ static void atcphy_configure_pipehandler_dummy(struct apple_atcphy *atcphy)
 	       FIELD_PREP(PIPEHANDLED_MUX_CTRL_CLK, PIPEHANDLED_MUX_CTRL_CLK_DUMMY));
 	udelay(10);
 
-	if (atcphy->pipehandler_is_host_mode) {
+	if (atcphy->is_host_mode) {
 		ret = atcphy_pipehandler_unlock(atcphy);
 		if (ret) {
 			dev_err(atcphy->dev, "Failed to unlock pipehandler");
 			return;
 		}
 	}
-
-	atcphy->pipehandler_is_host_mode = false;
 }
 
-static void atcphy_configure_pipehandler(struct apple_atcphy *atcphy, bool device_mode)
+static void atcphy_configure_pipehandler(struct apple_atcphy *atcphy)
 {
 	BUG_ON(!mutex_is_locked(&atcphy->lock));
 
@@ -2392,7 +2385,7 @@ static void atcphy_configure_pipehandler(struct apple_atcphy *atcphy, bool devic
 		atcphy_configure_pipehandler_dummy(atcphy);
 		break;
 	case ATCPHY_PIPEHANDLER_STATE_USB3:
-		atcphy_configure_pipehandler_usb3(atcphy, device_mode);
+		atcphy_configure_pipehandler_usb3(atcphy);
 		break;
 	case ATCPHY_PIPEHANDLER_STATE_USB4:
 		dev_err(atcphy->dev, "ATCPHY_PIPEHANDLER_STATE_USB4 not implemented; falling back to USB2\n");
@@ -2433,6 +2426,8 @@ static int atcphy_mux_set(struct typec_mux_dev *mux,
 	guard(mutex)(&atcphy->lock);
 
 	printk("HVLOG: atcphy_mux_set %ld\n", state->mode);
+
+	atcphy->is_host_mode = state->data_role == TYPEC_HOST;
 
 	if (state->mode == TYPEC_STATE_SAFE) {
 		atcphy->target_mode = APPLE_ATCPHY_MODE_OFF;
