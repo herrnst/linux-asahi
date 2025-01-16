@@ -1576,10 +1576,9 @@ static int atcphy_configure(struct apple_atcphy *atcphy, enum atcphy_mode mode)
 		return ret;
 	}
 
-
 	ret = atcphy_power_on(atcphy);
 	if (ret)
-		goto err;
+		return ret;
 
 	atcphy_setup_pll_fuses(atcphy);
 	atcphy_apply_tunables(atcphy, mode);
