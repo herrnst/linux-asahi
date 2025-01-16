@@ -33,6 +33,9 @@
 
 #include "atc-trace.h"
 
+static bool pipehandler_workaround = true;
+module_param(pipehandler_workaround, bool, 0644);
+
 #define AUSPLL_FSM_CTRL 0x1014
 
 #define AUSPLL_APB_CMD_OVERRIDE 0x2000
@@ -550,6 +553,7 @@ struct apple_atcphy {
 	int dp_link_rate;
 	bool pipehandler_up;
 	bool is_host_mode;
+	bool dwc3_running;
 
 	struct {
 		void __iomem *core;
@@ -1803,12 +1807,11 @@ static int atcphy_usb3_set_mode(struct phy *phy, enum phy_mode mode,
 
 	printk("HVLOG: atcphy_usb3_set_mode: %d %d\n", mode, submode);
 
-	if (mode != PHY_MODE_USB_HOST && mode != PHY_MODE_USB_DEVICE)
-		return 0;
+	// if (mode != PHY_MODE_USB_HOST && mode != PHY_MODE_USB_DEVICE)
+	// 	return 0;
 
 	if (!atcphy->pipehandler_up)
 		atcphy_configure_pipehandler(atcphy);
-	atcphy->pipehandler_up = true;
 
 	return 0;
 }
@@ -2110,7 +2113,14 @@ static int atcphy_dwc3_reset_assert(struct reset_controller_dev *rcdev,
 
 	_atcphy_dwc3_reset_assert(atcphy);
 
+	if (atcphy->pipehandler_up) {
+		atcphy_configure_pipehandler_dummy(atcphy);
+		atcphy->pipehandler_up = false;
+	}
+
 	atcphy_usb2_power_off(atcphy);
+
+	atcphy->dwc3_running = false;
 
 	return 0;
 }
@@ -2127,10 +2137,15 @@ static int atcphy_dwc3_reset_deassert(struct reset_controller_dev *rcdev,
 
 	atcphy_usb2_power_on(atcphy);
 
+	if (!pipehandler_workaround && !atcphy->pipehandler_up)
+		atcphy_configure_pipehandler(atcphy);
+
 	clear32(atcphy->regs.pipehandler + PIPEHANDLER_AON_GEN,
 		PIPEHANDLER_AON_GEN_DWC3_FORCE_CLAMP_EN);
 	set32(atcphy->regs.pipehandler + PIPEHANDLER_AON_GEN,
 	      PIPEHANDLER_AON_GEN_DWC3_RESET_N);
+
+	atcphy->dwc3_running = true;
 
 	return 0;
 }
@@ -2215,7 +2230,7 @@ static void atcphy_configure_pipehandler_usb3(struct apple_atcphy *atcphy)
 	if (atcphy_pipehandler_check(atcphy))
 		return;
 
-	if (atcphy->is_host_mode) {
+	if (atcphy->is_host_mode && atcphy->dwc3_running) {
 		/* Force disable link detection */
 		clear32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE_VALUES, PIPEHANDLER_OVERRIDE_VAL_RXDETECT0 | PIPEHANDLER_OVERRIDE_VAL_RXDETECT1);
 		set32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE, PIPEHANDLER_OVERRIDE_RXVALID);
@@ -2304,7 +2319,7 @@ static void atcphy_configure_pipehandler_usb3(struct apple_atcphy *atcphy)
 	clear32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE, PIPEHANDLER_OVERRIDE_RXVALID);
 	clear32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE, PIPEHANDLER_OVERRIDE_RXDETECT);
 
-	if (atcphy->is_host_mode) {
+	if (atcphy->is_host_mode && atcphy->dwc3_running) {
 		ret = atcphy_pipehandler_unlock(atcphy);
 		if (ret) {
 			dev_err(atcphy->dev, "Failed to unlock pipehandler");
@@ -2325,7 +2340,7 @@ static void atcphy_configure_pipehandler_dummy(struct apple_atcphy *atcphy)
 	set32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE, PIPEHANDLER_OVERRIDE_RXVALID);
 	set32(atcphy->regs.pipehandler + PIPEHANDLER_OVERRIDE, PIPEHANDLER_OVERRIDE_RXDETECT);
 
-	if (atcphy->is_host_mode) {
+	if (atcphy->is_host_mode && atcphy->dwc3_running) {
 		ret = atcphy_pipehandler_lock(atcphy);
 		if (ret) {
 			dev_err(atcphy->dev, "Failed to lock pipehandler");
@@ -2344,7 +2359,7 @@ static void atcphy_configure_pipehandler_dummy(struct apple_atcphy *atcphy)
 	       FIELD_PREP(PIPEHANDLED_MUX_CTRL_CLK, PIPEHANDLED_MUX_CTRL_CLK_DUMMY));
 	udelay(10);
 
-	if (atcphy->is_host_mode) {
+	if (atcphy->is_host_mode && atcphy->dwc3_running) {
 		ret = atcphy_pipehandler_unlock(atcphy);
 		if (ret) {
 			dev_err(atcphy->dev, "Failed to unlock pipehandler");
@@ -2370,10 +2385,12 @@ static void atcphy_configure_pipehandler(struct apple_atcphy *atcphy)
 		break;
 	case ATCPHY_PIPEHANDLER_STATE_USB3:
 		atcphy_configure_pipehandler_usb3(atcphy);
+		atcphy->pipehandler_up = true;
 		break;
 	case ATCPHY_PIPEHANDLER_STATE_USB4:
 		dev_err(atcphy->dev, "ATCPHY_PIPEHANDLER_STATE_USB4 not implemented; falling back to USB2\n");
 		atcphy_configure_pipehandler_dummy(atcphy);
+		atcphy->pipehandler_up = true;
 		break;
 	}
 }
