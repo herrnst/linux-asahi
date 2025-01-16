@@ -681,6 +681,14 @@ static void cd321x_update_work(struct work_struct *work)
 		tps->partner = NULL;
 	}
 
+	/* If there was a disconnection, set PHY to off */
+	if (!new_connected || was_disconnected) {
+		tps->state.alt = NULL;
+		tps->state.mode = TYPEC_STATE_SAFE;
+		tps->state.data = NULL;
+		typec_set_mode(tps->port, TYPEC_STATE_SAFE);
+	}
+
 	/* Update Type-C properties */
 	printk("HVLOG: update typec props\n");
 	typec_set_pwr_opmode(tps->port, pwr_opmode);
