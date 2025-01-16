@@ -548,7 +548,6 @@ struct apple_atcphy {
 	int dp_link_rate;
 	bool pipehandler_up;
 	bool is_host_mode;
-	bool usb3_configure_pending;
 
 	struct {
 		void __iomem *core;
@@ -807,7 +806,7 @@ static inline void core_clear32(struct apple_atcphy *atcphy, u32 reg, u32 clear)
 	core_mask32(atcphy, reg, clear, 0);
 }
 
-static void atcphy_apply_tunables_early(struct apple_atcphy *atcphy,
+static void atcphy_apply_tunables(struct apple_atcphy *atcphy,
 				  enum atcphy_mode mode)
 {
 	int lane0 = atcphy->swap_lanes ? 1 : 0;
@@ -821,10 +820,16 @@ static void atcphy_apply_tunables_early(struct apple_atcphy *atcphy,
 	switch (mode) {
 	case APPLE_ATCPHY_MODE_USB3:
 		printk("HVLOG: MODE_USB3\n");
+		apple_apply_tunable(atcphy->regs.core,
+				    &atcphy->tunables.lane_usb3[lane0]);
+		apple_apply_tunable(atcphy->regs.core,
+				    &atcphy->tunables.lane_usb3[lane1]);
 		break;
 
 	case APPLE_ATCPHY_MODE_USB3_DP:
 		printk("HVLOG: MODE_USB3_DP\n");
+		apple_apply_tunable(atcphy->regs.core,
+				    &atcphy->tunables.lane_usb3[lane0]);
 		apple_apply_tunable(atcphy->regs.core,
 				    &atcphy->tunables.lane_displayport[lane1]);
 		break;
@@ -844,39 +849,6 @@ static void atcphy_apply_tunables_early(struct apple_atcphy *atcphy,
 				    &atcphy->tunables.lane_usb4[lane0]);
 		apple_apply_tunable(atcphy->regs.core,
 				    &atcphy->tunables.lane_usb4[lane1]);
-		break;
-
-	default:
-		dev_warn(atcphy->dev,
-			 "Unknown mode %d in atcphy_apply_tunables\n", mode);
-		fallthrough;
-	case APPLE_ATCPHY_MODE_OFF:
-		printk("HVLOG: MODE_OFF\n");
-	case APPLE_ATCPHY_MODE_USB2:
-		printk("HVLOG: MODE_USB2\n");
-		break;
-	}
-}
-
-static void atcphy_apply_tunables_late(struct apple_atcphy *atcphy,
-				  enum atcphy_mode mode)
-{
-	int lane0 = atcphy->swap_lanes ? 1 : 0;
-	int lane1 = atcphy->swap_lanes ? 0 : 1;
-
-	switch (mode) {
-	case APPLE_ATCPHY_MODE_USB3:
-		printk("HVLOG: MODE_USB3\n");
-		apple_apply_tunable(atcphy->regs.core,
-				    &atcphy->tunables.lane_usb3[lane0]);
-		apple_apply_tunable(atcphy->regs.core,
-				    &atcphy->tunables.lane_usb3[lane1]);
-		break;
-
-	case APPLE_ATCPHY_MODE_USB3_DP:
-		printk("HVLOG: MODE_USB3_DP\n");
-		apple_apply_tunable(atcphy->regs.core,
-				    &atcphy->tunables.lane_usb3[lane0]);
 		break;
 
 	default:
@@ -1601,7 +1573,7 @@ static int atcphy_configure(struct apple_atcphy *atcphy, enum atcphy_mode mode)
 		return ret;
 
 	atcphy_setup_pll_fuses(atcphy);
-	atcphy_apply_tunables_early(atcphy, mode);
+	atcphy_apply_tunables(atcphy, mode);
 
 	// TODO: without this sometimes device aren't recognized but no idea what it does
 	// ACIOPHY_PLL_TOP_BLK_AUSPLL_PCTL_FSM_CTRL1.APB_REQ_OV_SEL = 255
@@ -1617,37 +1589,15 @@ static int atcphy_configure(struct apple_atcphy *atcphy, enum atcphy_mode mode)
 	if (atcphy_modes[mode].enable_dp_aux)
 		atcphy_enable_dp_aux(atcphy);
 
-	atcphy->usb3_configure_pending = (mode == APPLE_ATCPHY_MODE_USB3 || mode == APPLE_ATCPHY_MODE_USB3_DP);
-
-	if (!atcphy->usb3_configure_pending) {
-		/* enable clocks and configure lanes */
-		core_set32(atcphy, CIO3PLL_CLK_CTRL, CIO3PLL_CLK_PCLK_EN);
-		core_set32(atcphy, CIO3PLL_CLK_CTRL, CIO3PLL_CLK_REFCLK_EN);
-		atcphy_configure_lanes(atcphy, mode);
-
-		/* take the USB3 PHY out of reset */
-		core_set32(atcphy, ATCPHY_POWER_CTRL, ATCPHY_POWER_PHY_RESET_N);
-	}
-
-	atcphy->mode = mode;
-	return 0;
-}
-
-static int atcphy_configure_usb3(struct apple_atcphy *atcphy)
-{
-	int ret;
-
-	atcphy_apply_tunables_late(atcphy, atcphy->mode);
-
 	/* enable clocks and configure lanes */
 	core_set32(atcphy, CIO3PLL_CLK_CTRL, CIO3PLL_CLK_PCLK_EN);
 	core_set32(atcphy, CIO3PLL_CLK_CTRL, CIO3PLL_CLK_REFCLK_EN);
-	atcphy_configure_lanes(atcphy, atcphy->mode);
+	atcphy_configure_lanes(atcphy, mode);
 
 	/* take the USB3 PHY out of reset */
 	core_set32(atcphy, ATCPHY_POWER_CTRL, ATCPHY_POWER_PHY_RESET_N);
 
-	atcphy->usb3_configure_pending = false;
+	atcphy->mode = mode;
 
 	return 0;
 }
@@ -1811,9 +1761,6 @@ static int atcphy_usb3_power_on(struct phy *phy)
 	guard(mutex)(&atcphy->lock);
 
 	printk("HVLOG: atcphy_usb3_power_on\n");
-
-	if (atcphy->usb3_configure_pending)
-		atcphy_configure_usb3(atcphy);
 
 	if (!atcphy->pipehandler_up)
 		atcphy_configure_pipehandler(atcphy);
