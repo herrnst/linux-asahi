@@ -453,6 +453,10 @@
 #define USB2PHY_SIG_VBUSVLDEXT_FORCE_EN BIT(3)
 #define USB2PHY_SIG_HOST (7 << 12)
 
+#define USB2PHY_MISCTUNE 0x1c
+#define USB2PHY_MISCTUNE_APBCLK_GATE_OFF BIT(29)
+#define USB2PHY_MISCTUNE_REFCLK_GATE_OFF BIT(30)
+
 enum atcphy_dp_link_rate {
 	ATCPHY_DP_LINK_RATE_RBR,
 	ATCPHY_DP_LINK_RATE_HBR,
@@ -1694,58 +1698,61 @@ static int atcphy_pipehandler_unlock(struct apple_atcphy *atcphy)
 	return ret;
 }
 
-static int atcphy_usb2_power_on(struct phy *phy)
+static void atcphy_usb2_power_on(struct apple_atcphy *atcphy)
 {
-	struct apple_atcphy *atcphy = phy_get_drvdata(phy);
-	guard(mutex)(&atcphy->lock);
-
 	printk("HVLOG: atcphy_usb2_power_on\n");
 
-	/* take the PHY out of its low power state */
-	clear32(atcphy->regs.usb2phy + USB2PHY_CTL, USB2PHY_CTL_SIDDQ);
-	udelay(10);
-
-	/* reset the PHY for good measure */
-	clear32(atcphy->regs.usb2phy + USB2PHY_CTL, USB2PHY_CTL_APB_RESET_N);
-	set32(atcphy->regs.usb2phy + USB2PHY_CTL,
-	      USB2PHY_CTL_RESET | USB2PHY_CTL_PORT_RESET);
-	udelay(10);
-	set32(atcphy->regs.usb2phy + USB2PHY_CTL, USB2PHY_CTL_APB_RESET_N);
-	clear32(atcphy->regs.usb2phy + USB2PHY_CTL,
-		USB2PHY_CTL_RESET | USB2PHY_CTL_PORT_RESET);
+	if (atcphy->is_host_mode)
+		set32(atcphy->regs.usb2phy + USB2PHY_SIG, USB2PHY_SIG_HOST);
+	else
+		clear32(atcphy->regs.usb2phy + USB2PHY_SIG, USB2PHY_SIG_HOST);
 
 	set32(atcphy->regs.usb2phy + USB2PHY_SIG,
 	      USB2PHY_SIG_VBUSDET_FORCE_VAL | USB2PHY_SIG_VBUSDET_FORCE_EN |
 		      USB2PHY_SIG_VBUSVLDEXT_FORCE_VAL |
 		      USB2PHY_SIG_VBUSVLDEXT_FORCE_EN);
 
-	return 0;
+	udelay(10);
+
+	/* take the PHY out of its low power state */
+	clear32(atcphy->regs.usb2phy + USB2PHY_CTL, USB2PHY_CTL_SIDDQ);
+	udelay(10);
+
+	/* release reset */
+	clear32(atcphy->regs.usb2phy + USB2PHY_CTL, USB2PHY_CTL_RESET);
+	udelay(10);
+	clear32(atcphy->regs.usb2phy + USB2PHY_CTL, USB2PHY_CTL_PORT_RESET);
+	udelay(10);
+	set32(atcphy->regs.usb2phy + USB2PHY_CTL, USB2PHY_CTL_APB_RESET_N);
+	udelay(10);
+	clear32(atcphy->regs.usb2phy + USB2PHY_MISCTUNE, USB2PHY_MISCTUNE_APBCLK_GATE_OFF);
+	clear32(atcphy->regs.usb2phy + USB2PHY_MISCTUNE, USB2PHY_MISCTUNE_REFCLK_GATE_OFF);
+
+	writel(USB2PHY_USBCTL_RUN,
+		atcphy->regs.usb2phy + USB2PHY_USBCTL);
+
 }
 
-static void _atcphy_usb2_power_off(struct apple_atcphy *atcphy)
+static void atcphy_usb2_power_off(struct apple_atcphy *atcphy)
 {
 	printk("HVLOG: atcphy_usb2_power_off\n");
 
 	writel(USB2PHY_USBCTL_ISOLATION,
 		atcphy->regs.usb2phy + USB2PHY_USBCTL);
 
+	udelay(10);
 	/* switch the PHY to low power mode */
 	set32(atcphy->regs.usb2phy + USB2PHY_CTL, USB2PHY_CTL_SIDDQ);
-
-	/* reset the PHY before transitioning to low power mode */
-	set32(atcphy->regs.usb2phy + USB2PHY_CTL,
-	      USB2PHY_CTL_RESET | USB2PHY_CTL_PORT_RESET);
+	udelay(10);
+	set32(atcphy->regs.usb2phy + USB2PHY_CTL, USB2PHY_CTL_PORT_RESET);
+	udelay(10);
+	set32(atcphy->regs.usb2phy + USB2PHY_CTL, USB2PHY_CTL_RESET);
+	udelay(10);
 	clear32(atcphy->regs.usb2phy + USB2PHY_CTL, USB2PHY_CTL_APB_RESET_N);
-}
+	udelay(10);
 
-static int atcphy_usb2_power_off(struct phy *phy)
-{
-	struct apple_atcphy *atcphy = phy_get_drvdata(phy);
-	guard(mutex)(&atcphy->lock);
-
-	_atcphy_usb2_power_off(atcphy);
-
-	return 0;
+	set32(atcphy->regs.usb2phy + USB2PHY_MISCTUNE, USB2PHY_MISCTUNE_APBCLK_GATE_OFF);
+	set32(atcphy->regs.usb2phy + USB2PHY_MISCTUNE, USB2PHY_MISCTUNE_REFCLK_GATE_OFF);
 }
 
 static int atcphy_usb2_set_mode(struct phy *phy, enum phy_mode mode,
@@ -1828,18 +1835,7 @@ static int atcphy_usb3_set_mode(struct phy *phy, enum phy_mode mode,
 
 static const struct phy_ops apple_atc_usb2_phy_ops = {
 	.owner = THIS_MODULE,
-	.set_mode = atcphy_usb2_set_mode,
-	/*
-	 * This PHY is always matched with a dwc3 controller. Currently,
-	 * first dwc3 initializes the PHY and then soft-resets itself and
-	 * then finally powers on the PHY. This should be reasonable.
-	 * Annoyingly, the dwc3 soft reset is never completed when the USB2 PHY
-	 * is powered off so we have to pretend that these two are actually
-	 * init/exit here to ensure the PHY is powered on and out of reset
-	 * early enough.
-	 */
-	.init = atcphy_usb2_power_on,
-	.exit = atcphy_usb2_power_off,
+	/* Nothing to do for now, USB2 config handled around DWC3 reset */
 };
 
 // TODO: implement this for usb 3 (maybe)
@@ -2134,6 +2130,8 @@ static int atcphy_dwc3_reset_assert(struct reset_controller_dev *rcdev,
 
 	_atcphy_dwc3_reset_assert(atcphy);
 
+	atcphy_usb2_power_off(atcphy);
+
 	return 0;
 }
 
@@ -2146,6 +2144,8 @@ static int atcphy_dwc3_reset_deassert(struct reset_controller_dev *rcdev,
 	guard(mutex)(&atcphy->lock);
 
 	printk("HVLOG: dwc3 reset deassert\n");
+
+	atcphy_usb2_power_on(atcphy);
 
 	clear32(atcphy->regs.pipehandler + PIPEHANDLER_AON_GEN,
 		PIPEHANDLER_AON_GEN_DWC3_FORCE_CLAMP_EN);
@@ -2798,8 +2798,6 @@ static int atcphy_probe(struct platform_device *pdev)
 	mutex_lock(&atcphy->lock);
 	/* Reset dwc3 on probe, let dwc3 (consumer) deassert it */
 	_atcphy_dwc3_reset_assert(atcphy);
-	/* Power down the USB2 PHY */
-	_atcphy_usb2_power_off(atcphy);
 	atcphy_power_off(atcphy);
 	atcphy_setup_pipehandler(atcphy);
 
