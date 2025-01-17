@@ -217,6 +217,8 @@ static void cd321x_typec_update_mode(struct tps6598x *tps, struct tps6598x_statu
 	 * transitions long after they already happened and we're always coupled
 	 * with Apple's Type-C PHY which can transition between any states.
 	 */
+	printk("HVLOG: cd321x_typec_update_mode: data_status 0x%lx partner %p\n", (long)tps->data_status, tps->partner);
+
 	tps->state.data_role = (st->data_status & TPS_DATA_STATUS_USB_DATA_ROLE) ? TYPEC_DEVICE : TYPEC_HOST;
 
 	if (!(st->data_status & TPS_DATA_STATUS_DATA_CONNECTION)) {
@@ -225,6 +227,7 @@ static void cd321x_typec_update_mode(struct tps6598x *tps, struct tps6598x_statu
 		tps->state.alt = NULL;
 		tps->state.mode = TYPEC_STATE_SAFE;
 		tps->state.data = NULL;
+		printk("typec_set_mode: SAFE\n");
 		typec_mux_set(tps->mux, &tps->state);
 	} else if (st->data_status & TPS_DATA_STATUS_DP_CONNECTION) {
 		struct typec_displayport_data dp_data;
@@ -264,6 +267,7 @@ static void cd321x_typec_update_mode(struct tps6598x *tps, struct tps6598x_statu
 		tps->state.alt = tps->port_altmode_dp;
 		tps->state.data = &dp_data;
 		tps->state.mode = mode;
+		printk("typec_mux_set: DP connection\n");
 		typec_mux_set(tps->mux, &tps->state);
 	} else if (st->data_status & TPS_DATA_STATUS_TBT_CONNECTION) {
 		struct typec_thunderbolt_data tbt_data;
@@ -278,6 +282,7 @@ static void cd321x_typec_update_mode(struct tps6598x *tps, struct tps6598x_statu
 		tps->state.alt = tps->port_altmode_tbt;
 		tps->state.mode = TYPEC_TBT_MODE;
 		tps->state.data = &tbt_data;
+		printk("typec_mux_set: TBT connection\n");
 		typec_mux_set(tps->mux, &tps->state);
 	} else if (st->data_status & CD321X_DATA_STATUS_USB4_CONNECTION) {
 		struct enter_usb_data eusb_data;
@@ -292,6 +297,7 @@ static void cd321x_typec_update_mode(struct tps6598x *tps, struct tps6598x_statu
 		tps->state.alt = NULL;
 		tps->state.data = &eusb_data;
 		tps->state.mode = TYPEC_MODE_USB4;
+		printk("typec_mux_set: USB4 connection\n");
 		typec_mux_set(tps->mux, &tps->state);
 	} else {
 		if (tps->state.alt == NULL && tps->state.mode == TYPEC_STATE_USB)
@@ -299,7 +305,9 @@ static void cd321x_typec_update_mode(struct tps6598x *tps, struct tps6598x_statu
 		tps->state.alt = NULL;
 		tps->state.mode = TYPEC_STATE_USB;
 		tps->state.data = NULL;
+		printk("typec_set_mode: USB\n");
 		typec_mux_set(tps->mux, &tps->state);
+		printk("typec_set_mode: USB DONE\n");
 	}
 }
 
@@ -608,6 +616,8 @@ static void cd321x_update_work(struct work_struct *work)
 	struct tps6598x *tps = container_of(to_delayed_work(work),
 					    struct tps6598x, update_work);
 
+	printk("HVLOG: cd321x_update_work\n");
+
 	mutex_lock(&tps->update_lock);
 	struct tps6598x_status st = tps->update_status;
 	tps->update_status.status_changed = 0;
@@ -623,6 +633,8 @@ static void cd321x_update_work(struct work_struct *work)
 	bool usb_connection = st.data_status & (TPS_DATA_STATUS_USB2_CONNECTION | TPS_DATA_STATUS_USB3_CONNECTION);
 	bool dp_hpd = st.data_status & CD321X_DATA_STATUS_HPD_LEVEL;
 	bool dp_hpd_changed = st.data_status_changed & CD321X_DATA_STATUS_HPD_LEVEL;
+	printk("HVLOG: old_connected=%d new_connected=%d was_disconnected=%d usb_connection=%d dp_hpd=%d\n",
+	       old_connected, new_connected, was_disconnected, usb_connection, dp_hpd);
 	enum usb_role old_role = usb_role_switch_get_role(tps->role_sw);
 	enum usb_role new_role = USB_ROLE_NONE;
 	enum typec_pwr_opmode pwr_opmode = TYPEC_PWR_MODE_USB;
@@ -637,6 +649,9 @@ static void cd321x_update_work(struct work_struct *work)
 			TYPEC_ORIENTATION_REVERSE : TYPEC_ORIENTATION_NORMAL;
 	}
 
+	printk("HVLOG: old_role=%d new_role=%d pwr_opmode=%d orientation=%d\n",
+	       old_role, new_role, pwr_opmode, orientation);
+
 	bool is_pd = pwr_opmode == TYPEC_PWR_MODE_PD;
 	bool partner_changed = old_connected && new_connected &&
 		(was_disconnected ||
@@ -644,18 +659,23 @@ static void cd321x_update_work(struct work_struct *work)
 		 (is_pd && memcmp(&st.partner_identity,
 				  &tps->cur_partner_identity, sizeof(struct usb_pd_identity))));
 
+	printk("HVLOG: is_pd=%d partner_changed=%d\n", is_pd, partner_changed);
+
 	/* If we are switching from an active role, transition to USB_ROLE_NONE first */
 	if (old_role != USB_ROLE_NONE && (new_role != old_role || was_disconnected)) {
+		printk("HVLOG: usb_role_switch_set_role: USB_ROLE_NONE\n");
 		usb_role_switch_set_role(tps->role_sw, USB_ROLE_NONE);
 	}
 
 	/* If HPD was removed, notify DRM (this is a no-op if already removed) */
 	if (tps->connector_fwnode && (!dp_hpd || dp_hpd_changed)) {
+		printk("HVLOG: drm_connector_oob_hotplug_event: DISCONNECTED\n");
 		drm_connector_oob_hotplug_event(tps->connector_fwnode, connector_status_disconnected);
 	}
 
 	/* Process partner disconnection or change */
 	if (!new_connected || partner_changed) {
+		printk("HVLOG: reset partner\n");
 		if (!IS_ERR(tps->partner))
 			typec_unregister_partner(tps->partner);
 		tps->partner = NULL;
@@ -670,6 +690,7 @@ static void cd321x_update_work(struct work_struct *work)
 	}
 
 	/* Update Type-C properties */
+	printk("HVLOG: update typec props\n");
 	typec_set_pwr_opmode(tps->port, pwr_opmode);
 	typec_set_pwr_role(tps->port, TPS_STATUS_TO_TYPEC_PORTROLE(st.status));
 	typec_set_vconn_role(tps->port, TPS_STATUS_TO_TYPEC_VCONN(st.status));
@@ -682,6 +703,7 @@ static void cd321x_update_work(struct work_struct *work)
 
 	/* Set up partner if we were previously disconnected (or changed). */
 	if (!tps->partner) {
+		printk("HVLOG: setup partner\n");
 		struct typec_partner_desc desc;
 		desc.usb_pd = is_pd;
 		desc.accessory = TYPEC_ACCESSORY_NONE; /* XXX: handle accessories */
@@ -703,13 +725,16 @@ static void cd321x_update_work(struct work_struct *work)
 	}
 
 	/* Update the TypeC MUX/PHY state */
+	printk("HVLOG: update mode\n");
 	cd321x_typec_update_mode(tps, &st);
 
 	/* Launch the USB role switch */
+	printk("HVLOG: role switch\n");
 	usb_role_switch_set_role(tps->role_sw, new_role);
 
 	/* If HPD was asserted, notify DRM (this is a no-op if already asserted) */
 	if (tps->connector_fwnode && dp_hpd) {
+		printk("HVLOG: drm_connector_oob_hotplug_event: CONNECTED\n");
 		drm_connector_oob_hotplug_event(tps->connector_fwnode, connector_status_connected);
 	}
 }
@@ -738,6 +763,8 @@ static irqreturn_t cd321x_interrupt(int irq, void *data)
 	u64 event = 0;
 	u32 status;
 	int ret;
+
+	printk("HVLOG: cd321x_interrupt\n");
 
 	mutex_lock(&tps->lock);
 
@@ -782,6 +809,7 @@ static irqreturn_t cd321x_interrupt(int irq, void *data)
 	 * We will requeue the work after DEBOUNCE_DELAY regardless.
 	 */
 	cancel_delayed_work(&tps->update_work);
+	printk("HVLOG: schedule_delayed_work\n");
 	schedule_delayed_work(&tps->update_work, msecs_to_jiffies(DEBOUNCE_DELAY));
 
 	power_supply_changed(tps->psy);
@@ -1170,6 +1198,8 @@ cd321x_register_port(struct tps6598x *tps, struct fwnode_handle *fwnode)
 {
 	int ret;
 
+	printk("cd321x_register_port(%p, %p)\n", tps, fwnode);
+
 	ret = tps6598x_register_port(tps, fwnode);
 	if (ret)
 		return ret;
@@ -1194,6 +1224,7 @@ cd321x_register_port(struct tps6598x *tps, struct fwnode_handle *fwnode)
 	tps->state.alt = NULL;
 	tps->state.mode = TYPEC_STATE_SAFE;
 	tps->state.data = NULL;
+	printk("typec_set_mode: SAFE (register)\n");
 	typec_set_mode(tps->port, TYPEC_STATE_SAFE);
 
 	return 0;
@@ -1725,11 +1756,13 @@ static int tps6598x_probe(struct i2c_client *client)
 	}
 
 	if (status & TPS_STATUS_PLUG_PRESENT) {
+		printk("HVLOG: plug is present\n");
 		if (!tps6598x_read_power_status(tps))
 			goto err_unregister_port;
 		if (!tps->data->read_data_status(tps))
 			goto err_unregister_port;
 		if (tps->data->update_work) {
+			printk("HVLOG: schedule update work\n");
 			tps6598x_queue_status(tps);
 			schedule_delayed_work(&tps->update_work, msecs_to_jiffies(DEBOUNCE_DELAY));
 		} else {
