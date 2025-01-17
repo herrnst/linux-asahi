@@ -371,12 +371,15 @@ int typec_mux_set(struct typec_mux *mux, struct typec_mux_state *state)
 	unsigned int i;
 	int ret;
 
+	printk("HVLOG: typec_mux_set(%ld)\n", state->mode);
+
 	if (IS_ERR_OR_NULL(mux))
 		return 0;
 
 	for (i = 0; i < mux->num_mux_devs; i++) {
 		mux_dev = mux->mux_devs[i];
 
+		printk("HVLOG: typec_mux_set(%ld) dev\n", state->mode);
 		ret = mux_dev->set(mux_dev, state);
 		if (ret)
 			return ret;

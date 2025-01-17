@@ -2121,6 +2121,7 @@ int typec_set_mode(struct typec_port *port, int mode)
 	struct typec_mux_state state = { };
 
 	state.mode = mode;
+	printk("HVLOG: typec_set_mode(%d)\n", mode);
 
 	return typec_mux_set(port->mux, &state);
 }
