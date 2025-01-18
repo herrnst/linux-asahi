@@ -2817,6 +2817,10 @@ static const struct apple_atcphy_hw atcphy_t8112 = {
 
 static const struct apple_atcphy_hw atcphy_t6020 = {};
 
+static const struct apple_atcphy_hw atcphy_t6020_dp_only = {
+	.dp_only = true,
+};
+
 static const struct of_device_id atcphy_match[] = {
 	{
 		.compatible = "apple,t6000-atcphy",
@@ -2829,6 +2833,10 @@ static const struct of_device_id atcphy_match[] = {
 	{
 		.compatible = "apple,t6020-atcphy",
 		.data = &atcphy_t6020,
+	},
+	{
+		.compatible = "apple,t6020-atcphy-dp-only",
+		.data = &atcphy_t6020_dp_only,
 	},
 	{
 		.compatible = "apple,t8103-atcphy",
