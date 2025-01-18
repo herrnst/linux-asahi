@@ -51,6 +51,10 @@
 	interrupts = <44 IRQ_TYPE_LEVEL_LOW>;
 };
 
+&atcphy3 {
+	compatible = "apple,t6020-atcphy-dp-only";
+};
+
 /* Redefine GPIO for SDZ */
 &speaker_sdz {
 	gpios = <&pinctrl_ap 57 GPIO_ACTIVE_HIGH>;
