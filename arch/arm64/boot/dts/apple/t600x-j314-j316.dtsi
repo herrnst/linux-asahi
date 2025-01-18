@@ -129,7 +129,7 @@
 };
 
 &atcphy3 {
-	apple,mode-fixed-dp;
+	compatible = "apple,t6000-atcphy-dp-only";
 };
 
 &atcphy3_xbar {
