@@ -588,7 +588,7 @@ int dcp_wait_ready(struct platform_device *pdev, u64 timeout)
 	if (dcp->crashed)
 		return -ENODEV;
 	if (dcp->active)
-		return dcp_enable_dp2hdmi_hpd(dcp);;
+		return dcp_enable_dp2hdmi_hpd(dcp);
 	if (timeout <= 0)
 		return -ETIMEDOUT;
 
