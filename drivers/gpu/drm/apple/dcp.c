@@ -246,7 +246,7 @@ static void dcp_recv_msg(void *cookie, u8 endpoint, u64 message)
 	}
 }
 
-static void dcp_rtk_crashed(void *cookie)
+static void dcp_rtk_crashed(void *cookie, const void *crashlog, size_t crashlog_size)
 {
 	struct apple_dcp *dcp = cookie;
 
