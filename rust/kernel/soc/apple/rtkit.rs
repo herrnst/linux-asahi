@@ -40,7 +40,7 @@ pub trait Operations {
     type Buffer: Buffer;
 
     /// Called when RTKit crashes.
-    fn crashed(_data: <Self::Data as ForeignOwnable>::Borrowed<'_>) {}
+    fn crashed(_data: <Self::Data as ForeignOwnable>::Borrowed<'_>, _crashlog: Option<&[u8]>) {}
 
     /// Called when a message was received on a non-system endpoint. Called in non-IRQ context.
     fn recv_message(
@@ -92,9 +92,19 @@ pub struct RtKit<T: Operations> {
     _p: PhantomData<T>,
 }
 
-unsafe extern "C" fn crashed_callback<T: Operations>(cookie: *mut core::ffi::c_void) {
+unsafe extern "C" fn crashed_callback<T: Operations>(
+    cookie: *mut core::ffi::c_void,
+    crashlog: *const core::ffi::c_void,
+    crashlog_size: usize,
+) {
+    let crashlog = if !crashlog.is_null() && crashlog_size > 0 {
+        // SAFETY: The crashlog is either missing or a byte buffer of the specified size
+        Some(unsafe { core::slice::from_raw_parts(crashlog as *const u8, crashlog_size) })
+    } else {
+        None
+    };
     // SAFETY: cookie is always a T::Data in this API
-    T::crashed(unsafe { T::Data::borrow(cookie) });
+    T::crashed(unsafe { T::Data::borrow(cookie) }, crashlog);
 }
 
 unsafe extern "C" fn recv_message_callback<T: Operations>(
