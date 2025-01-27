@@ -482,7 +482,7 @@ static struct dma_chan *sio_dma_of_xlate(struct of_phandle_args *dma_spec,
 	return dma_get_slave_channel(&sio->channels[index].vc.chan);
 }
 
-static void sio_rtk_crashed(void *cookie)
+static void sio_rtk_crashed(void *cookie, const void *crashlog, size_t crashlog_size)
 {
 	struct sio_data *sio = cookie;
 
