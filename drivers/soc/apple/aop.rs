@@ -855,7 +855,7 @@ impl rtkit::Operations for AopData {
         }
     }
 
-    fn crashed(data: <Self::Data as ForeignOwnable>::Borrowed<'_>) {
+    fn crashed(data: <Self::Data as ForeignOwnable>::Borrowed<'_>, _crashlog: Option<&[u8]>) {
         dev_err!(data.dev, "AOP firmware crashed");
     }
 }
