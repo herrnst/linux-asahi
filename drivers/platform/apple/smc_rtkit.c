@@ -241,7 +241,7 @@ static const struct apple_smc_backend_ops apple_smc_rtkit_be_ops = {
 	.get_key_info = apple_smc_rtkit_get_key_info,
 };
 
-static void apple_smc_rtkit_crashed(void *cookie)
+static void apple_smc_rtkit_crashed(void *cookie, const void *crashlog, size_t crashlog_size)
 {
 	struct apple_smc_rtkit *smc = cookie;
 
