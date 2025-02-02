@@ -31,7 +31,7 @@ impl<T: Driver + 'static> driver::RegistrationOps for Adapter<T> {
         pdrv.probe = Some(Self::probe_callback);
 
         // Both members of this union are identical in data layout and semantics.
-        pdrv.__bindgen_anon_1.remove = Some(Self::remove_callback);
+        pdrv.remove = Some(Self::remove_callback);
         pdrv.driver.of_match_table = T::ID_TABLE.as_ptr();
 
         // SAFETY: `pdrv` is guaranteed to be a valid `RegType`.
