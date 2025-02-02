@@ -37,6 +37,10 @@ impl Resource {
             flags,
         })
     }
+
+    pub(crate) fn new_from_resource(res: &bindings::resource) -> Option<Self> {
+        Self::new(res.start, res.end, res.flags)
+    }
 }
 
 /// Represents a memory block of at least `SIZE` bytes.
