@@ -344,9 +344,9 @@ static int dcp_create_piodma_iommu_dev(struct apple_dcp *dcp)
 	}
 	of_node_put(node);
 
-	dcp->iommu_dom = iommu_domain_alloc(&platform_bus_type);
-	if (!dcp->iommu_dom) {
-		ret = -ENOMEM;
+	dcp->iommu_dom = iommu_paging_domain_alloc(&dcp->piodma->dev);
+	if (IS_ERR(dcp->iommu_dom)) {
+		ret = PTR_ERR(dcp->iommu_dom);
 		goto err_destroy_pdev;
 	}
 
