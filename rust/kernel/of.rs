@@ -4,7 +4,7 @@
 //!
 //! C header: [`include/linux/of_*.h`](srctree/include/linux/of_*.h)
 
-use crate::{bindings, device_id::RawDeviceId, prelude::*};
+use crate::{bindings, device_id::RawDeviceId, error::to_result, io_mem::Resource, prelude::*};
 // Note: Most OF functions turn into inline dummies with CONFIG_OF(_*) disabled.
 // We have to either add config conditionals to helpers.c or here; let's do it
 // here for now. In the future, once bindgen can auto-generate static inline
@@ -251,6 +251,24 @@ impl Node {
                 prop.as_char_ptr(),
                 index.try_into().ok()?,
             ))
+        }
+    }
+
+    pub fn address_as_resource(&self, index: usize) -> Result<Resource> {
+        #[cfg(not(CONFIG_OF))]
+        {
+            Err(EINVAL)
+        }
+        #[cfg(CONFIG_OF)]
+        {
+            let mut res = core::mem::MaybeUninit::<bindings::resource>::uninit();
+            // SAFETY: This function is safe to call as long as the arguments are valid pointers.
+            let ret = unsafe {
+                bindings::of_address_to_resource(self.raw_node, index.try_into()?, res.as_mut_ptr())
+            };
+            to_result(ret)?;
+            // SAFETY: We have checked the return value above, so the resource must be initialized now.
+            Resource::new_from_resource(&unsafe { res.assume_init() }).ok_or(EINVAL)
         }
     }
 
