@@ -7,13 +7,13 @@
  * Copyright (C) 2014 Endless Mobile
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 
-#include <drm/drm_aperture.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
@@ -422,8 +422,8 @@ static int apple_platform_probe(struct platform_device *pdev)
 		return ret;
 
 	fb_size = fb_r.end - fb_r.start + 1;
-	ret = drm_aperture_remove_conflicting_framebuffers(fb_r.start, fb_size,
-						false, &apple_drm_driver);
+	ret = aperture_remove_conflicting_devices(fb_r.start, fb_size,
+						  &apple_drm_driver);
 	if (ret) {
 		dev_err(dev, "Failed remove fb: %d\n", ret);
 		return ret;
