@@ -21,6 +21,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_blend.h>
+#include <drm/drm_client_setup.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
@@ -67,6 +68,7 @@ static int apple_drm_gem_dumb_create(struct drm_file *file_priv,
 
 static const struct drm_driver apple_drm_driver = {
 	DRM_GEM_DMA_DRIVER_OPS_WITH_DUMB_CREATE(apple_drm_gem_dumb_create),
+	DRM_FBDEV_DMA_DRIVER_OPS,
 	.name			= DRIVER_NAME,
 	.desc			= DRIVER_DESC,
 	.date			= "20221106",
@@ -625,7 +627,7 @@ static int apple_drm_init(struct device *dev)
 
 	fb_size = fb_r.end - fb_r.start + 1;
 	ret = aperture_remove_conflicting_devices(fb_r.start, fb_size,
-						  &apple_drm_driver);
+						  apple_drm_driver.name);
 	if (ret) {
 		dev_err(dev, "Failed remove fb: %d\n", ret);
 		goto err_unbind;
@@ -676,7 +678,7 @@ static int apple_drm_init(struct device *dev)
 	if (ret)
 		goto err_unbind;
 
-	drm_fbdev_dma_setup(&apple->drm, 32);
+	drm_client_setup_with_fourcc(&apple->drm, DRM_FORMAT_XRGB8888);
 
 	return 0;
 
