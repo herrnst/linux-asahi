@@ -6,8 +6,9 @@
 
 #![allow(dead_code)]
 
-use crate::{bindings, error::code::*, error::Result};
+use crate::{addr::*, bindings, error::code::*, error::Result};
 use core::convert::TryInto;
+use core::ptr::NonNull;
 
 /// The type of `Resource`.
 pub enum IoResource {
@@ -40,6 +41,16 @@ impl Resource {
 
     pub(crate) fn new_from_resource(res: &bindings::resource) -> Option<Self> {
         Self::new(res.start, res.end, res.flags)
+    }
+
+    /// Returns the start of this memory resource as a [`PhysicalAddr`]
+    pub fn start(&self) -> PhysicalAddr {
+        self.offset
+    }
+
+    /// Returns the size of this memory resource as a [`ResourceSize`]
+    pub fn size(&self) -> ResourceSize {
+        self.size
     }
 }
 
