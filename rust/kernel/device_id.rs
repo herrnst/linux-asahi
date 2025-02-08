@@ -154,7 +154,7 @@ macro_rules! module_device_table {
     ($table_type: literal, $module_table_name:ident, $table_name:ident) => {
         #[rustfmt::skip]
         #[export_name =
-            concat!("__mod_", $table_type, "__", stringify!($table_name), "_device_table")
+            concat!("__mod_device_table", "__", $table_type, "__", stringify!($table_name))
         ]
         static $module_table_name: [core::mem::MaybeUninit<u8>; $table_name.raw_ids().size()] =
             unsafe { core::mem::transmute_copy($table_name.raw_ids()) };
