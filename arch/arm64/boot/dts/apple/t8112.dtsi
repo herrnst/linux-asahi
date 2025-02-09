@@ -1659,6 +1659,9 @@
 			clocks = <&clk_dispext0>;
 			apple,dcp-index = <1>;
 			status = "disabled";
+			// required bus properties for 'piodma' subdevice
+			#address-cells = <2>;
+			#size-cells = <2>;
 
 			piodma {
 				iommus = <&dispext0_dart 4>;
