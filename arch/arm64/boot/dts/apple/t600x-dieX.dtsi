@@ -81,6 +81,9 @@
 		phandle = <&DIE_NODE(dcpext0)>;
 		apple,dcp-index = <1>;
 		status = "disabled";
+		// required bus properties for 'piodma' subdevice
+		#address-cells = <2>;
+		#size-cells = <2>;
 
 		piodma {
 			iommus = <&DIE_NODE(dispext0_dart) 4>;
