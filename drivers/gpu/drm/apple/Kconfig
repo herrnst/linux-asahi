@@ -4,6 +4,7 @@ config DRM_APPLE
 	depends on DRM && OF && ARM64
 	depends on ARCH_APPLE || COMPILE_TEST
 	depends on APPLE_RTKIT
+	select DRM_CLIENT_SELECTION
 	select DRM_KMS_HELPER
 	select DRM_KMS_DMA_HELPER
 	select DRM_GEM_DMA_HELPER
