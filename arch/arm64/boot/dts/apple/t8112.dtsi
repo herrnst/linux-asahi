@@ -697,6 +697,9 @@
 			resets = <&ps_disp0_cpu0>;
 			clocks = <&clk_disp0>;
 			phandle = <&dcp>;
+			// required bus properties for 'piodma' subdevice
+			#address-cells = <2>;
+			#size-cells = <2>;
 
 			disp0_piodma: piodma {
 				iommus = <&disp0_dart 4>;
