@@ -165,6 +165,7 @@
 &aop_audio {
 	apple,chassis-name = "J313";
 	apple,machine-kind = "MacBook Air";
+	no-beamforming;
 };
 
 / {
