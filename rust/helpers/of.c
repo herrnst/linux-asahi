@@ -22,3 +22,9 @@ struct device_node *rust_helper_of_parse_phandle(const struct device_node *np,
 {
 	return of_parse_phandle(np, phandle_name, index);
 }
+
+bool rust_helper_of_property_present(const struct device_node *np,
+               const char *property_name)
+{
+	return of_property_present(np, property_name);
+}
