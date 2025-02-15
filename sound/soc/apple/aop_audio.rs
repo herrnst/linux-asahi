@@ -664,6 +664,13 @@ impl platform::Driver for SndSocAopDriver {
             .ok_or(EIO)?
             .get_child_by_name(c_str!("audio"))
             .ok_or(EIO)?;
+        let audio = {
+            let lock = crate::THIS_MODULE.kernel_param_lock();
+            *crate::mic_check_123.read(&lock)
+        };
+        if !audio && of.property_present(c_str!("no-beamforming")) {
+            return Err(ENODEV);
+        }
         let data = SndSocAopData::new(dev, adata, svc, of)?;
         for dev in [AUDIO_DEV_PDM0, AUDIO_DEV_HPAI, AUDIO_DEV_LPAI] {
             data.audio_attach_device(dev)?;
@@ -680,4 +687,11 @@ module_platform_driver! {
     name: "snd_soc_apple_aop",
     license: "Dual MIT/GPL",
     alias: ["platform:snd_soc_apple_aop"],
+    params: {
+        mic_check_123: bool {
+            default: false,
+            permissions: 0o644,
+            description: "Enable mics without user space handling",
+        },
+    },
 }
