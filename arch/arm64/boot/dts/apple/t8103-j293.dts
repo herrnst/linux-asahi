@@ -229,6 +229,7 @@
 &aop_audio {
 	apple,chassis-name = "J293";
 	apple,machine-kind = "MacBook Pro";
+	no-beamforming;
 };
 
 / {
