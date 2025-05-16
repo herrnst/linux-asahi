@@ -26,6 +26,7 @@ pub(crate) struct BoCreateArgs {
     flags: u32,
 }
 
+#[vtable]
 impl gem::DriverObject for BoData {
     type Driver = TyrDrmDriver;
     type Args = BoCreateArgs;
