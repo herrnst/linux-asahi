@@ -48,8 +48,6 @@ struct tb_nhi_ops {
 	void (*shutdown)(struct tb_nhi *nhi);
 };
 
-extern const struct tb_nhi_ops icl_nhi_ops;
-
 /*
  * PCI IDs used in this driver from Win Ridge forward. There is no
  * need for the PCI quirk anymore as we will use ICM also on Apple

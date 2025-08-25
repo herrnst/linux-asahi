@@ -24,6 +24,7 @@
 
 #include "nhi.h"
 #include "nhi_regs.h"
+#include "nhi_icl.h"
 #include "tb.h"
 
 #define RING_TYPE(ring) ((ring)->is_tx ? "TX ring" : "RX ring")
@@ -1339,6 +1340,15 @@ static struct tb *nhi_select_cm(struct tb_nhi *nhi)
 
 	return tb;
 }
+
+static const struct tb_nhi_ops icl_nhi_ops = {
+	.init = icl_nhi_resume,
+	.suspend_noirq = icl_nhi_suspend_noirq,
+	.resume_noirq = icl_nhi_resume,
+	.runtime_suspend = icl_nhi_suspend,
+	.runtime_resume = icl_nhi_resume,
+	.shutdown = icl_nhi_shutdown,
+};
 
 static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
