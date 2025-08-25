@@ -3307,10 +3307,12 @@ int tb_switch_add(struct tb_switch *sw)
 	 * to the userspace. NVM can be accessed through DMA
 	 * configuration based mailbox.
 	 */
-	ret = tb_switch_add_dma_port(sw);
-	if (ret) {
-		dev_err(&sw->dev, "failed to add DMA port\n");
-		return ret;
+	if (!sw->no_dma_port) {
+		ret = tb_switch_add_dma_port(sw);
+		if (ret) {
+			dev_err(&sw->dev, "failed to add DMA port\n");
+			return ret;
+		}
 	}
 
 	if (!sw->safe_mode) {
