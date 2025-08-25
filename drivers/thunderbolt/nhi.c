@@ -750,7 +750,7 @@ void tb_ring_start(struct tb_ring *ring)
 		ring_iowrite32options(ring, flags, 0);
 	}
 
-	ring_interrupt_active(ring, true);
+	ring->nhi->ops->ring_interrupt_active(ring, true);
 	ring->running = true;
 err:
 	spin_unlock(&ring->lock);
@@ -785,7 +785,7 @@ void tb_ring_stop(struct tb_ring *ring)
 			 RING_TYPE(ring), ring->hop);
 		goto err;
 	}
-	ring_interrupt_active(ring, false);
+	ring->nhi->ops->ring_interrupt_active(ring, false);
 
 	ring_iowrite32options(ring, 0, 0);
 	ring_iowrite64desc(ring, 0, 0);
@@ -1353,13 +1353,14 @@ static const struct tb_nhi_ops icl_nhi_ops = {
 	.shutdown = icl_nhi_shutdown,
 	.ring_request_irq = ring_request_msix,
 	.ring_release_irq = ring_release_msix,
+	.ring_interrupt_active = ring_interrupt_active,
 };
 
 static const struct tb_nhi_ops pci_nhi_ops = {
 	.ring_request_irq = ring_request_msix,
 	.ring_release_irq = ring_release_msix,
+	.ring_interrupt_active = ring_interrupt_active,
 };
-
 
 static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
