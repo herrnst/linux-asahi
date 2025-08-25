@@ -984,7 +984,7 @@ static int __nhi_suspend_noirq(struct device *dev, bool wakeup)
 	if (ret)
 		return ret;
 
-	if (nhi->ops && nhi->ops->suspend_noirq) {
+	if (nhi->ops->suspend_noirq) {
 		ret = nhi->ops->suspend_noirq(tb->nhi, wakeup);
 		if (ret)
 			return ret;
@@ -1068,7 +1068,7 @@ static int nhi_resume_noirq(struct device *dev)
 	if (!pci_device_is_present(pdev)) {
 		nhi->going_away = true;
 	} else {
-		if (nhi->ops && nhi->ops->resume_noirq) {
+		if (nhi->ops->resume_noirq) {
 			ret = nhi->ops->resume_noirq(nhi);
 			if (ret)
 				return ret;
@@ -1114,7 +1114,7 @@ static int nhi_runtime_suspend(struct device *dev)
 	if (ret)
 		return ret;
 
-	if (nhi->ops && nhi->ops->runtime_suspend) {
+	if (nhi->ops->runtime_suspend) {
 		ret = nhi->ops->runtime_suspend(tb->nhi);
 		if (ret)
 			return ret;
@@ -1129,7 +1129,7 @@ static int nhi_runtime_resume(struct device *dev)
 	struct tb_nhi *nhi = tb->nhi;
 	int ret;
 
-	if (nhi->ops && nhi->ops->runtime_resume) {
+	if (nhi->ops->runtime_resume) {
 		ret = nhi->ops->runtime_resume(nhi);
 		if (ret)
 			return ret;
@@ -1165,7 +1165,7 @@ static void nhi_shutdown(struct tb_nhi *nhi)
 	}
 	ida_destroy(&nhi->msix_ida);
 
-	if (nhi->ops && nhi->ops->shutdown)
+	if (nhi->ops->shutdown)
 		nhi->ops->shutdown(nhi);
 }
 
@@ -1350,6 +1350,9 @@ static const struct tb_nhi_ops icl_nhi_ops = {
 	.shutdown = icl_nhi_shutdown,
 };
 
+static const struct tb_nhi_ops pci_nhi_ops = {
+};
+
 static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct device *dev = &pdev->dev;
@@ -1370,6 +1373,8 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	nhi->dev = dev;
 	nhi->ops = (const struct tb_nhi_ops *)id->driver_data;
+	if (!nhi->ops)
+		nhi->ops = &pci_nhi_ops;
 
 	nhi->iobase = pcim_iomap_region(pdev, 0, "thunderbolt");
 	res = PTR_ERR_OR_ZERO(nhi->iobase);
@@ -1402,7 +1407,7 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_set_master(pdev);
 
-	if (nhi->ops && nhi->ops->init) {
+	if (nhi->ops->init) {
 		res = nhi->ops->init(nhi);
 		if (res)
 			return res;
