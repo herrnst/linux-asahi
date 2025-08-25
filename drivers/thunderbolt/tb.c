@@ -15,6 +15,7 @@
 #include "tb.h"
 #include "tb_regs.h"
 #include "tunnel.h"
+#include "nhi.h"
 
 #define TB_TIMEOUT		100	/* ms */
 #define TB_RELEASE_BW_TIMEOUT	10000	/* ms */
@@ -3004,6 +3005,13 @@ static int tb_start(struct tb *tb, bool reset)
 	tb->root_switch->no_nvm_upgrade = !tb_switch_is_usb4(tb->root_switch);
 	/* All USB4 routers support runtime PM */
 	tb->root_switch->rpm = tb_switch_is_usb4(tb->root_switch);
+
+	/*
+	 * Apple Silicon devices have a separate, proprietary machanisms for
+	 * loading and updating firmware. Skip the DMA portinitialization on
+	 * these machines.
+	 */
+	tb->root_switch->no_dma_port = !!(tb->nhi->quirks & QUIRK_NO_DMA_PORT);
 
 	ret = tb_switch_configure(tb->root_switch);
 	if (ret) {
