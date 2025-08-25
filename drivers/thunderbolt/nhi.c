@@ -198,29 +198,31 @@ static void ring_iowrite_cons(struct tb_ring *ring, u16 cons)
 	 * are ignored by the hardware so we can save one ioread32() by
 	 * filling the read-only bits with zeroes.
 	 */
-	iowrite32(cons, ring_desc_base(ring) + 8);
+	iowrite32(cons, ring->nhi->ops->ring_desc_base(ring) + 8);
 }
 
 static void ring_iowrite_prod(struct tb_ring *ring, u16 prod)
 {
 	/* See ring_iowrite_cons() above for explanation */
-	iowrite32(prod << 16, ring_desc_base(ring) + 8);
+	iowrite32(prod << 16, ring->nhi->ops->ring_desc_base(ring) + 8);
 }
 
 static void ring_iowrite32desc(struct tb_ring *ring, u32 value, u32 offset)
 {
-	iowrite32(value, ring_desc_base(ring) + offset);
+	iowrite32(value, ring->nhi->ops->ring_desc_base(ring) + offset);
 }
 
 static void ring_iowrite64desc(struct tb_ring *ring, u64 value, u32 offset)
 {
-	iowrite32(value, ring_desc_base(ring) + offset);
-	iowrite32(value >> 32, ring_desc_base(ring) + offset + 4);
+	void __iomem *base = ring->nhi->ops->ring_desc_base(ring);
+
+	iowrite32(value, base + offset);
+	iowrite32(value >> 32, base + offset + 4);
 }
 
 static void ring_iowrite32options(struct tb_ring *ring, u32 value, u32 offset)
 {
-	iowrite32(value, ring_options_base(ring) + offset);
+	iowrite32(value, ring->nhi->ops->ring_options_base(ring) + offset);
 }
 
 static bool ring_full(struct tb_ring *ring)
@@ -1354,12 +1356,16 @@ static const struct tb_nhi_ops icl_nhi_ops = {
 	.ring_request_irq = ring_request_msix,
 	.ring_release_irq = ring_release_msix,
 	.ring_interrupt_active = ring_interrupt_active,
+	.ring_desc_base = ring_desc_base,
+	.ring_options_base = ring_options_base,
 };
 
 static const struct tb_nhi_ops pci_nhi_ops = {
 	.ring_request_irq = ring_request_msix,
 	.ring_release_irq = ring_release_msix,
 	.ring_interrupt_active = ring_interrupt_active,
+	.ring_desc_base = ring_desc_base,
+	.ring_options_base = ring_options_base,
 };
 
 static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
