@@ -49,6 +49,8 @@ struct tb_nhi_ops {
 	int (*ring_request_irq)(struct tb_ring *ring, bool no_suspend);
 	void (*ring_release_irq)(struct tb_ring *ring);
 	void (*ring_interrupt_active)(struct tb_ring *ring, bool active);
+	void __iomem *(*ring_desc_base)(struct tb_ring *ring);
+	void __iomem *(*ring_options_base)(struct tb_ring *ring);
 };
 
 /*
