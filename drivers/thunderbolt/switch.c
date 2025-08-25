@@ -2686,7 +2686,9 @@ static int tb_switch_set_uuid(struct tb_switch *sw)
 	if (sw->uuid)
 		return 0;
 
-	if (tb_switch_is_usb4(sw)) {
+	if (!tb_route(sw) && sw->uid) {
+		uid = true;
+	} else if (tb_switch_is_usb4(sw)) {
 		ret = usb4_switch_read_uid(sw, &sw->uid);
 		if (ret)
 			return ret;
