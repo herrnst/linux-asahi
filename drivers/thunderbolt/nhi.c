@@ -384,7 +384,7 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(tb_ring_poll);
 
-static void __ring_interrupt_mask(struct tb_ring *ring, bool mask)
+static void ring_interrupt_mask(struct tb_ring *ring, bool mask)
 {
 	int idx = ring_interrupt_index(ring);
 	int reg = REG_RING_INTERRUPT_BASE + idx / 32 * 4;
@@ -406,7 +406,7 @@ static void __ring_interrupt(struct tb_ring *ring)
 		return;
 
 	if (ring->start_poll) {
-		__ring_interrupt_mask(ring, true);
+		ring->nhi->ops->ring_interrupt_mask(ring, true);
 		ring->start_poll(ring->poll_data);
 	} else {
 		schedule_work(&ring->work);
@@ -427,7 +427,7 @@ void tb_ring_poll_complete(struct tb_ring *ring)
 	spin_lock_irqsave(&ring->nhi->lock, flags);
 	spin_lock(&ring->lock);
 	if (ring->start_poll)
-		__ring_interrupt_mask(ring, false);
+		ring->nhi->ops->ring_interrupt_mask(ring, false);
 	spin_unlock(&ring->lock);
 	spin_unlock_irqrestore(&ring->nhi->lock, flags);
 }
@@ -1356,6 +1356,7 @@ static const struct tb_nhi_ops icl_nhi_ops = {
 	.ring_request_irq = ring_request_msix,
 	.ring_release_irq = ring_release_msix,
 	.ring_interrupt_active = ring_interrupt_active,
+	.ring_interrupt_mask = ring_interrupt_mask,
 	.ring_desc_base = ring_desc_base,
 	.ring_options_base = ring_options_base,
 };
@@ -1364,6 +1365,7 @@ static const struct tb_nhi_ops pci_nhi_ops = {
 	.ring_request_irq = ring_request_msix,
 	.ring_release_irq = ring_release_msix,
 	.ring_interrupt_active = ring_interrupt_active,
+	.ring_interrupt_mask = ring_interrupt_mask,
 	.ring_desc_base = ring_desc_base,
 	.ring_options_base = ring_options_base,
 };
