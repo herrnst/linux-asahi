@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * NHI specific operations
+ * Ice Lake NHI specific operations
  *
  * Copyright (C) 2019, Intel Corporation
  * Author: Mika Westerberg <mika.westerberg@linux.intel.com>
@@ -11,6 +11,7 @@
 
 #include "nhi.h"
 #include "nhi_regs.h"
+#include "nhi_icl.h"
 #include "tb.h"
 
 /* Ice Lake specific NHI operations */
@@ -122,7 +123,7 @@ static void icl_nhi_set_ltr(struct tb_nhi *nhi)
 	pci_write_config_dword(pdev, VS_CAP_15, ltr);
 }
 
-static int icl_nhi_suspend(struct tb_nhi *nhi)
+int icl_nhi_suspend(struct tb_nhi *nhi)
 {
 	struct tb *tb = pci_get_drvdata(to_pci_dev(nhi->dev));
 	int ret;
@@ -145,7 +146,7 @@ static int icl_nhi_suspend(struct tb_nhi *nhi)
 	return icl_nhi_force_power(nhi, false);
 }
 
-static int icl_nhi_suspend_noirq(struct tb_nhi *nhi, bool wakeup)
+int icl_nhi_suspend_noirq(struct tb_nhi *nhi, bool wakeup)
 {
 	struct tb *tb = pci_get_drvdata(to_pci_dev(nhi->dev));
 	enum icl_lc_mailbox_cmd cmd;
@@ -161,7 +162,7 @@ static int icl_nhi_suspend_noirq(struct tb_nhi *nhi, bool wakeup)
 	return icl_nhi_lc_mailbox_cmd_complete(nhi, ICL_LC_MAILBOX_TIMEOUT);
 }
 
-static int icl_nhi_resume(struct tb_nhi *nhi)
+int icl_nhi_resume(struct tb_nhi *nhi)
 {
 	int ret;
 
@@ -173,16 +174,7 @@ static int icl_nhi_resume(struct tb_nhi *nhi)
 	return 0;
 }
 
-static void icl_nhi_shutdown(struct tb_nhi *nhi)
+void icl_nhi_shutdown(struct tb_nhi *nhi)
 {
 	icl_nhi_force_power(nhi, false);
 }
-
-const struct tb_nhi_ops icl_nhi_ops = {
-	.init = icl_nhi_resume,
-	.suspend_noirq = icl_nhi_suspend_noirq,
-	.resume_noirq = icl_nhi_resume,
-	.runtime_suspend = icl_nhi_suspend,
-	.runtime_resume = icl_nhi_resume,
-	.shutdown = icl_nhi_shutdown,
-};
