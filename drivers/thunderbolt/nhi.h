@@ -46,6 +46,8 @@ struct tb_nhi_ops {
 	int (*runtime_suspend)(struct tb_nhi *nhi);
 	int (*runtime_resume)(struct tb_nhi *nhi);
 	void (*shutdown)(struct tb_nhi *nhi);
+	int (*ring_request_irq)(struct tb_ring *ring, bool no_suspend);
+	void (*ring_release_irq)(struct tb_ring *ring);
 };
 
 /*
