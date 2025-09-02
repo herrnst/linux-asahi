@@ -2400,6 +2400,14 @@ op_unmap_cb(const struct drm_gpuvm_ops *fn, void *priv,
 	return fn->sm_step_unmap(&op, priv);
 }
 
+static bool can_merge_flags(struct drm_gpuvm *gpuvm, enum drm_gpuva_flags a,
+			    enum drm_gpuva_flags b)
+{
+	if (gpuvm->ops->sm_can_merge_flags)
+		return gpuvm->ops->sm_can_merge_flags(a, b);
+	return a == b;
+}
+
 static bool __can_merge(struct drm_gpuvm *gpuvm, const struct drm_gpuva_op_map *a,
 			const struct drm_gpuva_op_map *b)
 {
@@ -2407,6 +2415,9 @@ static bool __can_merge(struct drm_gpuvm *gpuvm, const struct drm_gpuva_op_map *
 	 * the same GEM object.
 	 */
 	if (a->gem.obj != b->gem.obj || !a->gem.obj)
+		return false;
+
+	if (can_merge_flags(gpuvm, a->flags, b->flags))
 		return false;
 
 	/* Order VAs for the rest of the checks. */
@@ -2433,6 +2444,7 @@ static bool can_merge(struct drm_gpuvm *gpuvm, const struct drm_gpuva *a,
 		.va.range = a->va.range,
 		.gem.offset = a->gem.offset,
 		.gem.obj = a->gem.obj,
+		.flags = a->flags,
 	};
 
 	return __can_merge(gpuvm, &tmp, b);
@@ -2491,6 +2503,7 @@ __drm_gpuvm_sm_map(struct drm_gpuvm *gpuvm,
 					.va.range = range - req_range,
 					.gem.obj = obj,
 					.gem.offset = offset + req_range,
+					.flags = va->flags,
 				};
 				struct drm_gpuva_op_unmap u = {
 					.va = va,
@@ -2512,6 +2525,7 @@ __drm_gpuvm_sm_map(struct drm_gpuvm *gpuvm,
 				.va.range = ls_range,
 				.gem.obj = obj,
 				.gem.offset = offset,
+				.flags = va->flags,
 			};
 			struct drm_gpuva_op_unmap u = { .va = va };
 
@@ -2555,6 +2569,7 @@ __drm_gpuvm_sm_map(struct drm_gpuvm *gpuvm,
 					.gem.obj = obj,
 					.gem.offset = offset + ls_range +
 						      req_range,
+					.flags = va->flags,
 				};
 
 				ret = op_remap_cb(ops, priv, &p, &n, &u);
@@ -2592,6 +2607,7 @@ __drm_gpuvm_sm_map(struct drm_gpuvm *gpuvm,
 					.va.range = end - req_end,
 					.gem.obj = obj,
 					.gem.offset = offset + req_end - addr,
+					.flags = va->flags,
 				};
 				struct drm_gpuva_op_unmap u = {
 					.va = va,
@@ -2643,6 +2659,7 @@ __drm_gpuvm_sm_unmap(struct drm_gpuvm *gpuvm,
 			prev.va.range = req_addr - addr;
 			prev.gem.obj = obj;
 			prev.gem.offset = offset;
+			prev.flags = va->flags;
 
 			prev_split = true;
 		}
@@ -2652,6 +2669,7 @@ __drm_gpuvm_sm_unmap(struct drm_gpuvm *gpuvm,
 			next.va.range = end - req_end;
 			next.gem.obj = obj;
 			next.gem.offset = offset + (req_end - addr);
+			next.flags = va->flags;
 
 			next_split = true;
 		}
