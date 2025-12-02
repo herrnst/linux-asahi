@@ -120,6 +120,7 @@ pub mod impl_flags;
 pub mod init;
 pub mod io;
 pub mod ioctl;
+pub mod iosys_map;
 pub mod iov;
 pub mod irq;
 pub mod jump_label;
