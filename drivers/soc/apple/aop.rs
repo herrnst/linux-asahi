@@ -16,6 +16,7 @@ use kernel::{
         mem::IoMem,
         Io, //
     },
+    iosys_map::IoSysMapRef,
     module_platform_driver, new_condvar, new_mutex, of, platform,
     prelude::*,
     soc::apple::aop::{from_fourcc, EPICService, FakehidListener, AOP},
@@ -881,7 +882,7 @@ impl rtkit::Buffer for NoBuffer {
     fn iova(&self) -> Result<usize> {
         unreachable!()
     }
-    fn buf(&mut self) -> Result<&mut [u8]> {
+    fn buf(&mut self) -> Result<IoSysMapRef<'_, u8>> {
         unreachable!()
     }
 }
