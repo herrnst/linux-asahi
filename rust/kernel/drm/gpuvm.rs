@@ -34,8 +34,6 @@ use crate::{
     types::Opaque, //
 };
 
-use crate::drm::gem::BaseDriverObject;
-use crate::drm::gem::IntoGEMObject;
 use core::cell::UnsafeCell;
 use core::marker::{PhantomData, PhantomPinned};
 use core::mem::ManuallyDrop;
@@ -151,6 +149,9 @@ impl<T: Default> DriverGpuVmBo for T {
     }
 }
 
+/// A convenience type for the driver's GEM object.
+type Object<T> = <<T as DriverGpuVm>::Driver as drm::driver::Driver>::Object;
+
 #[repr(transparent)]
 pub struct OpMap<T: DriverGpuVm>(bindings::drm_gpuva_op_map, PhantomData<T>);
 #[repr(transparent)]
@@ -171,9 +172,9 @@ impl<T: DriverGpuVm> OpMap<T> {
     pub fn flags(&self) -> GpuVaFlags {
         GpuVaFlags(self.0.flags)
     }
-    pub fn object(&self) -> &<<T::Driver as drm::Driver>::Object as BaseDriverObject>::Object {
+    pub fn object(&self) -> &Object<T> {
         let p = unsafe {
-            <<<T::Driver as drm::Driver>::Object as BaseDriverObject>::Object as IntoGEMObject>::from_raw(self.0.gem.obj)
+            <Object::<T> as IntoGEMObject>::from_raw(self.0.gem.obj)
         };
         // SAFETY: The GEM object has an active reference for the lifetime of this op
         &*p
@@ -506,7 +507,7 @@ impl<T: DriverGpuVm> GpuVm<T> {
         name: &'static CStr,
         flags: bindings::drm_gpuvm_flags,
         dev: &device::Device<T::Driver>,
-        r_obj: ARef<<<T::Driver as drm::Driver>::Object as BaseDriverObject>::Object>,
+        r_obj: ARef<Object<T>>,
         range: Range<u64>,
         reserve_range: Range<u64>,
         inner: impl PinInit<T, E>,
@@ -559,7 +560,7 @@ impl<T: DriverGpuVm> GpuVm<T> {
 
     pub fn exec_lock<'a, 'b>(
         &'a self,
-        obj: Option<&'b <<T::Driver as drm::Driver>::Object as BaseDriverObject>::Object>,
+        obj: Option<&'b Object<T>>,
         interruptible: bool,
     ) -> Result<LockedGpuVm<'a, 'b, T>> {
         // Do not try to lock the object if it is internal (since it is already locked).
@@ -674,7 +675,7 @@ unsafe impl<T: DriverGpuVm> AlwaysRefCounted for GpuVm<T> {
 pub struct LockedGpuVm<'a, 'b, T: DriverGpuVm> {
     gpuvm: &'a GpuVm<T>,
     vm_exec: KBox<bindings::drm_gpuvm_exec>,
-    obj: Option<&'b <<T::Driver as drm::Driver>::Object as BaseDriverObject>::Object>,
+    obj: Option<&'b Object<T>>,
 }
 
 impl<T: DriverGpuVm> LockedGpuVm<'_, '_, T> {
