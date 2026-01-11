@@ -469,6 +469,163 @@ void *typec_mux_get_drvdata(struct typec_mux_dev *mux_dev)
 }
 EXPORT_SYMBOL_GPL(typec_mux_get_drvdata);
 
+/* ------------------------------------------------------------------------- */
+
+struct typec_thunderbolt_switch {
+	struct typec_thunderbolt_switch_dev *sw_dev;
+};
+
+static int thunderbolt_switch_fwnode_match(struct device *dev,
+					   const void *fwnode)
+{
+	if (!is_typec_thunderbolt_switch_dev(dev))
+		return 0;
+
+	return device_match_fwnode(dev, fwnode);
+}
+
+static void *typec_thunderbolt_switch_match(const struct fwnode_handle *fwnode,
+					    const char *id, void *data)
+{
+	struct device *dev;
+
+	if (id && !fwnode_property_present(fwnode, id))
+		return NULL;
+
+	dev = class_find_device(&typec_mux_class, NULL, fwnode,
+				thunderbolt_switch_fwnode_match);
+
+	return dev ? to_typec_thunderbolt_switch_dev(dev) :
+		     ERR_PTR(-EPROBE_DEFER);
+}
+
+struct typec_thunderbolt_switch *
+fwnode_typec_thunderbolt_switch_get(struct fwnode_handle *fwnode)
+{
+	struct typec_thunderbolt_switch *sw;
+	void *match;
+
+	sw = kzalloc(sizeof(*sw), GFP_KERNEL);
+	if (!sw)
+		return ERR_PTR(-ENOMEM);
+
+	match = fwnode_connection_find_match(fwnode, "thunderbolt-switch", NULL,
+					     typec_thunderbolt_switch_match);
+	if (!match) {
+		kfree(sw);
+		return NULL;
+	}
+
+	if (IS_ERR(match)) {
+		kfree(sw);
+		return ERR_CAST(match);
+	}
+
+	sw->sw_dev = match;
+	WARN_ON(!try_module_get(sw->sw_dev->dev.parent->driver->owner));
+
+	return sw;
+}
+EXPORT_SYMBOL_GPL(fwnode_typec_thunderbolt_switch_get);
+
+void typec_thunderbolt_switch_put(struct typec_thunderbolt_switch *sw)
+{
+	if (IS_ERR_OR_NULL(sw))
+		return;
+
+	module_put(sw->sw_dev->dev.parent->driver->owner);
+	put_device(&sw->sw_dev->dev);
+	kfree(sw);
+}
+EXPORT_SYMBOL_GPL(typec_thunderbolt_switch_put);
+
+int typec_thunderbolt_switch_set(struct typec_thunderbolt_switch *sw,
+				 struct typec_tbt_switch_data *data)
+{
+	int ret;
+
+	if (IS_ERR_OR_NULL(sw))
+		return 0;
+
+	ret = sw->sw_dev->set(sw->sw_dev, data);
+	if (ret && ret != -EOPNOTSUPP)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(typec_thunderbolt_switch_set);
+
+static void typec_thunderbolt_switch_release(struct device *dev)
+{
+	kfree(to_typec_thunderbolt_switch_dev(dev));
+}
+
+const struct device_type typec_thunderbolt_switch_dev_type = {
+	.name = "thunderbolt_switch",
+	.release = typec_thunderbolt_switch_release,
+};
+
+struct typec_thunderbolt_switch_dev *typec_thunderbolt_switch_register(
+	struct device *parent, const struct typec_thunderbolt_switch_desc *desc)
+{
+	struct typec_thunderbolt_switch_dev *sw_dev;
+	int ret;
+
+	if (!desc || !desc->set)
+		return ERR_PTR(-EINVAL);
+
+	sw_dev = kzalloc(sizeof(*sw_dev), GFP_KERNEL);
+	if (!sw_dev)
+		return ERR_PTR(-ENOMEM);
+
+	sw_dev->set = desc->set;
+
+	device_initialize(&sw_dev->dev);
+	sw_dev->dev.parent = parent;
+	sw_dev->dev.fwnode = desc->fwnode;
+	sw_dev->dev.class = &typec_mux_class;
+	sw_dev->dev.type = &typec_thunderbolt_switch_dev_type;
+	sw_dev->dev.driver_data = desc->drvdata;
+	ret = dev_set_name(&sw_dev->dev, "%s-tbt-switch",
+			   desc->name ? desc->name : dev_name(parent));
+	if (ret) {
+		put_device(&sw_dev->dev);
+		return ERR_PTR(ret);
+	}
+
+	ret = device_add(&sw_dev->dev);
+	if (ret) {
+		dev_err(parent, "failed to register switch (%d)\n", ret);
+		put_device(&sw_dev->dev);
+		return ERR_PTR(ret);
+	}
+
+	return sw_dev;
+}
+EXPORT_SYMBOL_GPL(typec_thunderbolt_switch_register);
+
+void typec_thunderbolt_switch_unregister(
+	struct typec_thunderbolt_switch_dev *sw_dev)
+{
+	if (!IS_ERR_OR_NULL(sw_dev))
+		device_unregister(&sw_dev->dev);
+}
+EXPORT_SYMBOL_GPL(typec_thunderbolt_switch_unregister);
+
+void typec_thunderbolt_switch_set_drvdata(
+	struct typec_thunderbolt_switch_dev *sw_dev, void *data)
+{
+	dev_set_drvdata(&sw_dev->dev, data);
+}
+EXPORT_SYMBOL_GPL(typec_thunderbolt_switch_set_drvdata);
+
+void *typec_thunderbolt_switch_get_drvdata(
+	struct typec_thunderbolt_switch_dev *sw_dev)
+{
+	return dev_get_drvdata(&sw_dev->dev);
+}
+EXPORT_SYMBOL_GPL(typec_thunderbolt_switch_get_drvdata);
+
 const struct class typec_mux_class = {
 	.name = "typec_mux",
 };
