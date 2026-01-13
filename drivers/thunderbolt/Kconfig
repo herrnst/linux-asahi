@@ -60,4 +60,16 @@ config USB4_DMA_TEST
 	  To compile this driver a module, choose M here. The module will be
 	  called thunderbolt_dma_test.
 
+config USB4_APPLE_SOC
+       tristate "Apple Silicon USB4/Thunderbolt Support"
+       depends on ARCH_APPLE || COMPILE_TEST
+       depends on OF && APPLE_RTKIT
+       select APPLE_TUNABLE
+       help
+	    Add driver for Thunderbolt and USB4 compatible devices on
+	    Apple Silicon machines starting with the M1.
+
+		To compile the driver as a module, choose M here. The module
+		will be called thunderbolt_apple.
+
 endif # USB4
