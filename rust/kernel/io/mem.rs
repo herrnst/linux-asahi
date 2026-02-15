@@ -11,6 +11,7 @@ use crate::{
         Device, //
     },
     devres::Devres,
+    impl_flags,
     io::{
         self,
         resource::{
@@ -21,7 +22,6 @@ use crate::{
         MmioRaw, //
     },
     prelude::*,
-    types::declare_flags_type, //
 };
 
 /// An IO request for a specific device and resource.
@@ -297,35 +297,36 @@ impl<const SIZE: usize> Deref for IoMem<SIZE> {
     }
 }
 
-declare_flags_type! {
+impl_flags!(
     /// Flags to be used when remapping memory.
-    ///
-    /// They can be combined with the operators `|`, `&`, and `!`.
-    pub struct MemFlags(crate::ffi::c_ulong) = 0;
-}
+    #[derive(Debug, Clone, Default, Copy, PartialEq, Eq)]
+    pub struct MemFlags(usize);
 
-impl MemFlags {
-    /// Matches the default mapping for System RAM on the architecture.
-    ///
-    /// This is usually a read-allocate write-back cache. Moreover, if this flag is specified and
-    /// the requested remap region is RAM, memremap() will bypass establishing a new mapping and
-    /// instead return a pointer into the direct map.
-    pub const WB: MemFlags = MemFlags(bindings::MEMREMAP_WB as _);
+    /// Enum mirroring the C MEMREMAP_* eum values
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum MemFlag {
+        /// Matches the default mapping for System RAM on the architecture.
+        ///
+        /// This is usually a read-allocate write-back cache. Moreover, if this flag is specified and
+        /// the requested remap region is RAM, memremap() will bypass establishing a new mapping and
+        /// instead return a pointer into the direct map.
+        WB = bindings::MEMREMAP_WB as usize,
 
-    /// Establish a mapping whereby writes either bypass the cache or are written through to memory
-    /// and never exist in a cache-dirty state with respect to program visibility.
-    ///
-    /// Attempts to map System RAM with this mapping type will fail.
-    pub const WT: MemFlags = MemFlags(bindings::MEMREMAP_WT as _);
-    /// Establish a writecombine mapping, whereby writes may be coalesced together  (e.g. in the
-    /// CPU's write buffers), but is otherwise uncached.
-    ///
-    /// Attempts to map System RAM with this mapping type will fail.
-    pub const WC: MemFlags = MemFlags(bindings::MEMREMAP_WC as _);
+        /// Establish a mapping whereby writes either bypass the cache or are written through to memory
+        /// and never exist in a cache-dirty state with respect to program visibility.
+        ///
+        /// Attempts to map System RAM with this mapping type will fail.
+        WT = bindings::MEMREMAP_WT as usize,
 
-    // Note: Skipping MEMREMAP_ENC/DEC since they are under-documented and have zero
-    // users outside of arch/x86.
-}
+        /// Establish a writecombine mapping, whereby writes may be coalesced together  (e.g. in the
+        /// CPU's write buffers), but is otherwise uncached.
+        ///
+        /// Attempts to map System RAM with this mapping type will fail.
+        WC = bindings::MEMREMAP_WC as usize,
+        // Note: Skipping MEMREMAP_ENC/DEC since they are under-documented and have zero
+        // users outside of arch/x86.
+    }
+);
 
 /// Represents a non-MMIO memory block. This is like [`IoMem`], but for cases where it is known
 /// that the resource being mapped does not have I/O side effects.
@@ -346,19 +347,19 @@ impl Mem {
     /// to a different address.
     ///
     /// If multiple caching flags are specified, the different mapping types will be attempted in
-    /// the order [`MemFlags::WB`], [`MemFlags::WT`], [`MemFlags::WC`].
+    /// the order [`MemFlag::WB`], [`MemFlag::WT`], [`MemFlag::WC`].
     ///
     /// # Flags
     ///
-    /// * [`MemFlags::WB`]: Matches the default mapping for System RAM on the architecture.
+    /// * [`MemFlag::WB`]: Matches the default mapping for System RAM on the architecture.
     ///   This is usually a read-allocate write-back cache. Moreover, if this flag is specified and
     ///   the requested remap region is RAM, memremap() will bypass establishing a new mapping and
     ///   instead return a pointer into the direct map.
     ///
-    /// * [`MemFlags::WT`]: Establish a mapping whereby writes either bypass the cache or are written
+    /// * [`MemFlag::WT`]: Establish a mapping whereby writes either bypass the cache or are written
     ///   through to memory and never exist in a cache-dirty state with respect to program visibility.
     ///   Attempts to map System RAM with this mapping type will fail.
-    /// * [`MemFlags::WC`]: Establish a writecombine mapping, whereby writes may be coalesced together
+    /// * [`MemFlag::WC`]: Establish a writecombine mapping, whereby writes may be coalesced together
     ///   (e.g. in the CPU's write buffers), but is otherwise uncached. Attempts to map System RAM with
     ///   this mapping type will fail.
     ///
@@ -370,7 +371,7 @@ impl Mem {
     pub unsafe fn try_new(res: Resource, flags: MemFlags) -> Result<Self> {
         let size: usize = res.size().try_into()?;
 
-        let addr = unsafe { bindings::memremap(res.start(), size, flags.as_raw()) };
+        let addr = unsafe { bindings::memremap(res.start(), size, flags.into()) };
         let ptr = NonNull::new(addr).ok_or(ENOMEM)?;
         // INVARIANT: `ptr` is non-null and was returned by `memremap`, so it is valid.
         Ok(Self { ptr, size })
