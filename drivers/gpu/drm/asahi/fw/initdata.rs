@@ -1058,7 +1058,6 @@ pub(crate) mod raw {
         pub(crate) unk_66: U32,
         pub(crate) unk_6a: Array<0x16, u8>,
         // end GlobalsSub::ver
-
         pub(crate) unk_80: Array<0xf80, u8>,
         pub(crate) unk_1000: Array<0x7000, u8>,
         pub(crate) unk_8000: Array<0x900, u8>,
