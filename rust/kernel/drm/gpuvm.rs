@@ -162,9 +162,7 @@ impl<T: DriverGpuVm> OpMap<T> {
         GpuVaFlags(self.0.flags)
     }
     pub fn object(&self) -> &Object<T> {
-        let p = unsafe {
-            <Object::<T> as IntoGEMObject>::from_raw(self.0.gem.obj)
-        };
+        let p = unsafe { <Object<T> as IntoGEMObject>::from_raw(self.0.gem.obj) };
         // SAFETY: The GEM object has an active reference for the lifetime of this op
         &*p
     }
@@ -736,7 +734,7 @@ impl<T: DriverGpuVm> LockedGpuVm<'_, '_, T> {
                     obj: obj.as_raw(),
                 },
                 flags: flags.as_raw(),
-            }
+            },
         };
 
         // SAFETY: LockedGpuVm implies the right locks are held.
