@@ -368,10 +368,8 @@ struct iomfb_abort_swaps_dcp_resp {
 } __packed;
 
 struct iomfb_set_matrix_req {
-	u32 unk_u32; // maybe length?
-	u64 r[3];
-	u64 g[3];
-	u64 b[3];
+	u32 location;
+	u64 matrix[9];
 	u8 matrix_null;
 	u8 padding[3];
 } __packed;
