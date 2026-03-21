@@ -1046,7 +1046,7 @@ static int dcp_comp_bind(struct device *dev, struct device *main, void *data)
 		dcp->connector_type = DRM_MODE_CONNECTOR_Unknown;
 
 	ret = dcp_create_piodma_iommu_dev(dcp);
-	if (ret)
+	if (ret || !dcp->iommu_dom)
 		return dev_err_probe(dev, ret,
 				"Failed to created PIODMA iommu child device");
 
