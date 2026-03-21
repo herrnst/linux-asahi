@@ -728,17 +728,15 @@ static void dcp_work_update_backlight(struct work_struct *work)
 static int dcp_create_piodma_iommu_dev(struct apple_dcp *dcp)
 {
 	int ret;
-	struct device_node *node = of_get_child_by_name(dcp->dev->of_node, "piodma");
+	struct device_node *node __free(device_node) = of_get_child_by_name(dcp->dev->of_node, "piodma");
 
 	if (!node)
 		return dev_err_probe(dcp->dev, -ENODEV,
 				     "Failed to get piodma child DT node\n");
 
 	dcp->piodma = of_platform_device_create(node, NULL, dcp->dev);
-	if (!dcp->piodma) {
-		of_node_put(node);
+	if (!dcp->piodma)
 		return dev_err_probe(dcp->dev, -ENODEV, "Failed to create piodma pdev for %pOF\n", node);
-	}
 
 	ret = dma_set_mask_and_coherent(&dcp->piodma->dev, DMA_BIT_MASK(42));
 	if (ret)
@@ -750,7 +748,6 @@ static int dcp_create_piodma_iommu_dev(struct apple_dcp *dcp)
 			"Failed to configure IOMMU child DMA\n");
 		goto err_destroy_pdev;
 	}
-	of_node_put(node);
 
 	dcp->iommu_dom = iommu_get_domain_for_dev(&dcp->piodma->dev);
 	if (IS_ERR(dcp->iommu_dom)) {
@@ -763,7 +760,6 @@ static int dcp_create_piodma_iommu_dev(struct apple_dcp *dcp)
 
 	return 0;
 err_destroy_pdev:
-	of_node_put(node);
 	of_platform_device_destroy(&dcp->piodma->dev, NULL);
 	return ret;
 }
