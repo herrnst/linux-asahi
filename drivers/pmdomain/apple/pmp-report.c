@@ -157,8 +157,11 @@ static int apple_pmp_report_entry_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "missing label property\n");
 
-	if (of_property_read_bool(node, "apple,always-on"))
+	if (of_property_read_bool(node, "apple,always-on")) {
 		ent->genpd.flags |= GENPD_FLAG_ACTIVE_WAKEUP;
+		apple_pmp_report_set_state(&ent->genpd, true);
+	}
+
 	ent->genpd.name = name;
 	ent->genpd.power_on = apple_pmp_report_entry_power_on;
 	ent->genpd.power_off = apple_pmp_report_entry_power_off;
