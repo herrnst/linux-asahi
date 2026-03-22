@@ -187,7 +187,12 @@ impl PmpData {
         let n_entries = node.property_count_elem::<u64>(prop_name)? / 2;
         let ranges = node
             .property_read_array_vec::<u64>(prop_name, n_entries * 2)?
-            .required_by(&self.dev)?;
+            .optional();
+        let ranges = if let Some(r) = ranges {
+            r
+        } else {
+            return Ok((OPC_GET_IOVA_TABLE | OPC_ACK_MASK) << OPC_SHIFT);
+        };
         let mut table = self.dev.while_bound_with(|bound_dev| {
             CoherentAllocation::alloc_coherent(bound_dev, 512, GFP_KERNEL)
         })?;
