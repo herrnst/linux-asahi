@@ -221,9 +221,16 @@ struct AudioSetDeviceProp<T> {
 // conflicts ith pin_init. Instead just ensure that it has the same size as if
 // it where packed.
 static_assert!(mem::size_of::<AudioSetDeviceProp<PDMConfig>>() == 52 + mem::size_of::<PDMConfig>());
-static_assert!(mem::size_of::<AudioSetDeviceProp<DecimatorConfig>>() == 52 + mem::size_of::<DecimatorConfig>());
-static_assert!(mem::size_of::<AudioSetDeviceProp<LpaiChannelConfig>>() == 52 + mem::size_of::<LpaiChannelConfig>());
-static_assert!(mem::size_of::<AudioSetDeviceProp<PowerSetting>>() == 52 + mem::size_of::<PowerSetting>());
+static_assert!(
+    mem::size_of::<AudioSetDeviceProp<DecimatorConfig>>() == 52 + mem::size_of::<DecimatorConfig>()
+);
+static_assert!(
+    mem::size_of::<AudioSetDeviceProp<LpaiChannelConfig>>()
+        == 52 + mem::size_of::<LpaiChannelConfig>()
+);
+static_assert!(
+    mem::size_of::<AudioSetDeviceProp<PowerSetting>>() == 52 + mem::size_of::<PowerSetting>()
+);
 
 impl<T: Default> AudioSetDeviceProp<T> {
     fn new(dev_id: u32, modifier: u32, data: T) -> AudioSetDeviceProp<T> {
