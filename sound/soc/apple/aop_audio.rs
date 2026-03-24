@@ -5,9 +5,9 @@
 //!
 //! Copyright (C) The Asahi Linux Contributors
 
+use core::fmt;
 use core::sync::atomic::{AtomicU32, Ordering};
 use core::{mem, ptr, slice};
-use core::fmt;
 
 use kernel::{
     bindings, c_str, device,
