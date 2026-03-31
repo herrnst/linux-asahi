@@ -217,9 +217,6 @@
 		iommus = <&pmp_dart 0>;
 		power-domains = <&ps_pmp>;
 		status = "disabled";
-
-		tunables {
-		};
 	};
 
 	pmp_mbox: mbox@28ec08000 {
