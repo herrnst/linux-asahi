@@ -130,8 +130,8 @@ impl PmpData {
             GFP_KERNEL,
         )
     }
-    fn start_cpu(&self) -> Result<()> {
-        let asc_mmio = self.asc_mmio.try_access().ok_or(ENXIO)?;
+    fn start_cpu(&self, dev: &platform::Device<Core>) -> Result<()> {
+        let asc_mmio = self.asc_mmio.access(dev.as_ref())?;
         let val = asc_mmio.read32_relaxed(CPU_CONTROL);
         asc_mmio.write32_relaxed(val | CPU_RUN, CPU_CONTROL);
         Ok(())
@@ -142,21 +142,12 @@ impl PmpData {
         rtk.as_mut().wake()?;
         rtk.start_endpoint(PMP_ENDPOINT)
     }
-    fn pmp_read32(&self, off: usize) -> u32 {
-        if let Some(pmp_mmio) = self.pmp_mmio.try_access() {
-            pmp_mmio.read32_relaxed(off)
-        } else {
-            0
-        }
-    }
-    fn patch_bootargs(&self, patches: &[(u32, u32)]) -> Result<()> {
-        let offset = self.pmp_read32(BOOTARGS_OFFSET) as usize;
-        let size = self.pmp_read32(BOOTARGS_SIZE) as usize;
+    fn patch_bootargs(&self, dev: &platform::Device<Core>, patches: &[(u32, u32)]) -> Result<()> {
+        let io = self.pmp_mmio.access(dev.as_ref())?;
+        let offset = io.read32_relaxed(BOOTARGS_OFFSET) as usize;
+        let size = io.read32_relaxed(BOOTARGS_SIZE) as usize;
         let mut arg_bytes = kvec![0u8; size]?;
-        {
-            let pmp_mmio = self.pmp_mmio.try_access().ok_or(ENXIO)?;
-            pmp_mmio.try_memcpy_fromio(&mut arg_bytes, offset)?;
-        }
+        io.try_memcpy_fromio(&mut arg_bytes, offset)?;
         let mut idx = 0;
         while idx < size {
             let key = u32::from_le_bytes(arg_bytes[idx..idx + 4].try_into().unwrap());
@@ -171,10 +162,7 @@ impl PmpData {
             }
             idx += size;
         }
-        {
-            let pmp_mmio = self.pmp_mmio.try_access().ok_or(ENXIO)?;
-            pmp_mmio.try_memcpy_toio(offset, &arg_bytes)
-        }
+        io.try_memcpy_toio(offset, &arg_bytes)
     }
     fn get_iova_table(&self) -> Result<u64> {
         let mut state = self.state.lock();
@@ -416,18 +404,22 @@ impl platform::Driver for PmpDriver {
             .required_by(&dev)?;
         let bdid = node.property_read(c"apple,board-id").required_by(&dev)?;
         match node.property_read(c"apple,dram-capacity").optional() {
-            Some(dcap) => data.patch_bootargs(&[
-                (from_fourcc(b"BDID"), bdid),
-                (from_fourcc(b"DCAP"), dcap),
-                (from_fourcc(b"DVID"), dvid),
-            ])?,
-            None => {
-                data.patch_bootargs(&[(from_fourcc(b"BDID"), bdid), (from_fourcc(b"DVID"), dvid)])?
-            }
+            Some(dcap) => data.patch_bootargs(
+                pdev,
+                &[
+                    (from_fourcc(b"BDID"), bdid),
+                    (from_fourcc(b"DCAP"), dcap),
+                    (from_fourcc(b"DVID"), dvid),
+                ],
+            )?,
+            None => data.patch_bootargs(
+                pdev,
+                &[(from_fourcc(b"BDID"), bdid), (from_fourcc(b"DVID"), dvid)],
+            )?,
         };
         let rtkit = rtkit::RtKit::<PmpData>::new(&dev, None, 0, data.clone())?;
         *data.rtkit.lock() = Some(rtkit);
-        data.start_cpu()?;
+        data.start_cpu(pdev)?;
         data.start()?;
         Ok(PmpDriver(data))
     }
