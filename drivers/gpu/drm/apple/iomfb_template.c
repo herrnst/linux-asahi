@@ -1251,6 +1251,11 @@ int DCP_FW_NAME(iomfb_modeset)(struct apple_dcp *dcp,
 	/* Keep track of suspected vrr modes */
 	dcp->use_timestamps = mode->vrr;
 
+	if (mode->vrr)
+		dcp->min_vrr = mode->min_vrr;
+	else
+		dcp->min_vrr = 0;
+
 	cookie = kzalloc(sizeof(*cookie), GFP_KERNEL);
 	if (!cookie) {
 		return -ENOMEM;
@@ -1263,11 +1268,8 @@ int DCP_FW_NAME(iomfb_modeset)(struct apple_dcp *dcp,
 
 	dcp->during_modeset = true;
 
-	if (mode->vrr)
-		dcp_set_adaptive_sync(dcp, mode->min_vrr, cookie);
-	else
-		dcp_set_digital_out_mode(dcp, false, &dcp->mode,
-					 complete_set_digital_out_mode, cookie);
+	dcp_set_digital_out_mode(dcp, false, &dcp->mode,
+				 complete_set_digital_out_mode, cookie);
 
 	/*
 	 * The DCP firmware has an internal timeout of ~8 seconds for
@@ -1432,6 +1434,39 @@ void DCP_FW_NAME(iomfb_flush)(struct apple_dcp *dcp, struct drm_crtc *crtc, stru
 		req->swap.bl_value = dcp->brightness.dac;
 		req->swap.bl_power = 0x40;
 		dcp->brightness.update = false;
+	}
+
+	/*
+	 * If VRR is requested, we need to set the minRR parameter
+	 * and then call set_digital_out_mode. This does *not* trigger
+	 * a full modeset.
+	 */
+	if (crtc_state->vrr_enabled != dcp->vrr_enabled) {
+		struct dcp_wait_cookie *cookie;
+		int timeout;
+
+		cookie = kzalloc(sizeof(*cookie), GFP_KERNEL);
+		if (!cookie) {
+			schedule_work(&dcp->vblank_wq);
+			return;
+		}
+
+		init_completion(&cookie->done);
+		kref_init(&cookie->refcount);
+		kref_get(&cookie->refcount);
+
+		dcp_set_adaptive_sync(dcp, crtc_state->vrr_enabled ? dcp->min_vrr : 0, cookie);
+
+		timeout = wait_for_completion_timeout(&cookie->done,
+						      msecs_to_jiffies(500));
+		if (!timeout) {
+			schedule_work(&dcp->vblank_wq);
+			return;
+		}
+
+		kref_put(&cookie->refcount, release_wait_cookie);
+
+		dcp->vrr_enabled = crtc_state->vrr_enabled;
 	}
 
 	if (crtc_state->color_mgmt_changed) {
