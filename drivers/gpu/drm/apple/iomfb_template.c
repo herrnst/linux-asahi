@@ -1248,8 +1248,8 @@ int DCP_FW_NAME(iomfb_modeset)(struct apple_dcp *dcp,
 		.timing_mode_id = mode->timing_mode_id
 	};
 
-	/* Keep track of suspected vrr modes */
-	dcp->use_timestamps = mode->vrr;
+	/* Use DCP swap timestamps on MacBook Pros with VRR */
+	dcp->use_timestamps = mode->vrr && dcp->main_display;
 
 	if (mode->vrr)
 		dcp->min_vrr = mode->min_vrr;
@@ -1424,7 +1424,7 @@ void DCP_FW_NAME(iomfb_flush)(struct apple_dcp *dcp, struct drm_crtc *crtc, stru
 		req->clear = 1;
 	}
 
-	if (has_surface && dcp->use_timestamps) {
+	if (has_surface && (dcp->use_timestamps || crtc_state->vrr_enabled)) {
 		/*
 		 * TODO: ascertain with certainty what these timestamps
 		 * are. These names are guesses based on what macOS populates
