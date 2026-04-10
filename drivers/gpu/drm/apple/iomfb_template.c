@@ -1183,19 +1183,30 @@ static void complete_set_digital_out_mode(struct apple_dcp *dcp, void *data,
 }
 
 /* Changes to Adaptive Sync require a trip through set_digital_out_mode */
-static void dcp_on_set_adaptive_sync(struct apple_dcp *dcp, void *out, void *cookie)
+// static void dcp_on_set_adaptive_sync(struct apple_dcp *dcp, void *out, void *cookie)
+// {
+// 	dcp_set_digital_out_mode(dcp, false, &dcp->mode,
+// 				 complete_set_digital_out_mode, cookie);
+// }
+
+static void dcp_on_set_digital_out_mode(struct apple_dcp *dcp, void *data, void *cookie)
 {
 	dcp_set_digital_out_mode(dcp, false, &dcp->mode,
 				 complete_set_digital_out_mode, cookie);
 }
 
-static void dcp_set_adaptive_sync(struct apple_dcp *dcp, u64 rate, void *cookie)
+static void dcp_on_set_display_refresh_properties(struct apple_dcp *dcp, void *data, void *cookie)
+{
+	dcp_set_display_refresh_properties(dcp, false, complete_set_digital_out_mode, cookie);
+}
+
+static void dcp_set_adaptive_sync(struct apple_dcp *dcp, u32 rate, u32 media_rate, dcp_callback_t cb, void *cookie)
 {
 	struct dcp_set_parameter_dcp param = {
 		.param = IOMFBPARAM_ADAPTIVE_SYNC,
 		.value = {
 			rate & 0xffffffff, /* minRR */
-			0,                 /* mediaTargetRate */
+			media_rate >> 16,                 /* mediaTargetRate */
 			0,                 /* Fractional Rate (?) */
 			0,                 /* unk */
 		},
@@ -1206,7 +1217,7 @@ static void dcp_set_adaptive_sync(struct apple_dcp *dcp, u64 rate, void *cookie)
 #endif
 	};
 
-	dcp_set_parameter_dcp(dcp, false, &param, dcp_on_set_adaptive_sync, cookie);
+	dcp_set_parameter_dcp(dcp, false, &param, cb, cookie);
 }
 
 int DCP_FW_NAME(iomfb_modeset)(struct apple_dcp *dcp,
@@ -1251,10 +1262,13 @@ int DCP_FW_NAME(iomfb_modeset)(struct apple_dcp *dcp,
 	/* Use DCP swap timestamps on MacBook Pros with VRR */
 	dcp->use_timestamps = mode->vrr && dcp->main_display;
 
-	if (mode->vrr)
+	if (mode->vrr) {
 		dcp->min_vrr = mode->min_vrr;
-	else
+		dcp->max_vrr = mode->max_vrr;
+	} else {
 		dcp->min_vrr = 0;
+		dcp->max_vrr = 0;
+	}
 
 	cookie = kzalloc(sizeof(*cookie), GFP_KERNEL);
 	if (!cookie) {
@@ -1268,8 +1282,7 @@ int DCP_FW_NAME(iomfb_modeset)(struct apple_dcp *dcp,
 
 	dcp->during_modeset = true;
 
-	dcp_set_digital_out_mode(dcp, false, &dcp->mode,
-				 complete_set_digital_out_mode, cookie);
+	dcp_set_adaptive_sync(dcp, dcp->min_vrr, dcp->max_vrr, dcp_on_set_digital_out_mode, cookie);
 
 	/*
 	 * The DCP firmware has an internal timeout of ~8 seconds for
@@ -1465,7 +1478,7 @@ void DCP_FW_NAME(iomfb_flush)(struct apple_dcp *dcp, struct drm_crtc *crtc, stru
 		kref_init(&cookie->refcount);
 		kref_get(&cookie->refcount);
 
-		dcp_set_adaptive_sync(dcp, crtc_state->vrr_enabled ? dcp->min_vrr : 0, cookie);
+		dcp_set_adaptive_sync(dcp, dcp->min_vrr, crtc_state->vrr_enabled ? dcp->min_vrr : dcp->max_vrr, dcp_on_set_display_refresh_properties, cookie);
 
 		timeout = wait_for_completion_timeout(&cookie->done,
 						      msecs_to_jiffies(500));
