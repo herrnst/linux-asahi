@@ -173,15 +173,13 @@ impl PmpData {
         let node = self.dev.fwnode().ok_or(EIO)?;
         let mut pio_base = PIO_VM_BASE;
         let prop_name = c"apple,pio-ranges";
+        if !node.property_present(prop_name) {
+            return Ok((OPC_GET_IOVA_TABLE | OPC_ACK_MASK) << OPC_SHIFT);
+        }
         let n_entries = node.property_count_elem::<u64>(prop_name)? / 2;
         let ranges = node
             .property_read_array_vec::<u64>(prop_name, n_entries * 2)?
-            .optional();
-        let ranges = if let Some(r) = ranges {
-            r
-        } else {
-            return Ok((OPC_GET_IOVA_TABLE | OPC_ACK_MASK) << OPC_SHIFT);
-        };
+            .required_by(&self.dev)?;
         let mut table = self.dev.while_bound_with(|bound_dev| {
             CoherentAllocation::alloc_coherent(bound_dev, 512, GFP_KERNEL)
         })?;
