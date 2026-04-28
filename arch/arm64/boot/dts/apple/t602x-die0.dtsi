@@ -48,15 +48,6 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		pmp_report_gfx: report@a {
-			compatible = "apple,t6020-pmp-v2-report-entry",
-				"apple,t6000-pmp-v2-report-entry";
-			reg = <0xa>;
-			label = "pmp-gfx";
-			#power-domain-cells = <0>;
-			power-domains = <&ps_gfx>;
-		};
-
 		pmp_report_ane_sys: report@b {
 			compatible = "apple,t6020-pmp-v2-report-entry",
 				"apple,t6000-pmp-v2-report-entry";
@@ -94,15 +85,17 @@
 			label = "pmp-dispext0";
 			#power-domain-cells = <0>;
 			power-domains = <&ps_dispext0_cpu0>;
+			apple,always-on;
 		};
 
 		pmp_report_dispext1: report@f {
 			compatible = "apple,t6020-pmp-v2-report-entry",
 				"apple,t6000-pmp-v2-report-entry";
-			reg = <0xe>;
+			reg = <0xf>;
 			label = "pmp-dispext1";
 			#power-domain-cells = <0>;
 			power-domains = <&ps_dispext1_cpu0>;
+			apple,always-on;
 		};
 
 		pmp_report_venc_sys: report@10 {
@@ -965,11 +958,7 @@
 			<AIC_IRQ 0 1149 IRQ_TYPE_LEVEL_HIGH>,
 			<AIC_IRQ 0 1142 IRQ_TYPE_LEVEL_HIGH>;
 		mboxes = <&agx_mbox>;
-		#ifdef APPLE_USE_PMP
-		power-domains = <&pmp_report_gfx>;
-		#else
 		power-domains = <&ps_gfx>;
-		#endif
 		memory-region = <&uat_ttbs>, <&uat_pagetables>, <&uat_handoff>,
 				<&gpu_hw_cal_a>, <&gpu_hw_cal_b>, <&gpu_globals>;
 		memory-region-names = "ttbs", "pagetables", "handoff",
