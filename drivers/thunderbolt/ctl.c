@@ -1159,6 +1159,7 @@ int tb_cfg_write(struct tb_ctl *ctl, const void *buffer, u64 route, u32 port,
 	}
 	return res.err;
 }
+EXPORT_SYMBOL_GPL(tb_cfg_write);
 
 /**
  * tb_cfg_get_upstream_port() - get upstream port number of switch at route
