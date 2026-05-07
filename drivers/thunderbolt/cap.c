@@ -254,3 +254,4 @@ int tb_switch_find_vse_cap(struct tb_switch *sw, enum tb_switch_vse_cap vsec)
 
 	return -ENOENT;
 }
+EXPORT_SYMBOL_GPL(tb_switch_find_vse_cap);
