@@ -348,6 +348,7 @@
 
 &die1 {
 	#include "t6031-dieX.dtsi"
+	#include "t6031-nvme.dtsi"
 };
 
 #include "t6031-pmgr.dtsi"

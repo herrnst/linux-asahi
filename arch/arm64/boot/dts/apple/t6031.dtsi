@@ -41,6 +41,7 @@
 &soc {
 	#include "t6031-die0.dtsi"
 	#include "t6031-dieX.dtsi"
+	#include "t6031-nvme.dtsi"
 };
 
 #include "t6031-gpio-pins.dtsi"
