@@ -17,6 +17,10 @@
 	model = "Apple MacBook Pro (14-inch, M3 Pro, Nov 2023)";
 };
 
+&mtp_mt {
+	firmware-name = "apple/tpmtfw-j514s.bin";
+};
+
 &wifi0 {
 	brcm,board-type = "apple,texa";
 };
