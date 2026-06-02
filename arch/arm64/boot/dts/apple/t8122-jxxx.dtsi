@@ -72,3 +72,5 @@
 		local-bd-address = [00 00 00 00 00 00];
 	};
 };
+
+#include "spi1-nvram.dtsi"

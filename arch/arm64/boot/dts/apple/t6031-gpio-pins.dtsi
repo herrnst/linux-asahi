@@ -51,6 +51,13 @@
 			<APPLE_PINMUX(73, 1)>;
 	};
 
+	spi1_pins: spi1-pins {
+		pinmux = <APPLE_PINMUX(116, 1)>, /* SDI */
+			<APPLE_PINMUX(117, 1)>,  /* SDO */
+			<APPLE_PINMUX(118, 1)>,  /* SCK */
+			<APPLE_PINMUX(119, 1)>;  /* CS */
+	};
+
 	pcie_pins: pcie-pins {
 		pinmux = <APPLE_PINMUX(0, 1)>,
 			<APPLE_PINMUX(1, 1)>,

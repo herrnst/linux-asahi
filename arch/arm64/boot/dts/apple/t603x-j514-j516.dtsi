@@ -109,3 +109,5 @@
 &pcie0_dart_1 {
 	status = "okay";
 };
+
+#include "spi1-nvram.dtsi"

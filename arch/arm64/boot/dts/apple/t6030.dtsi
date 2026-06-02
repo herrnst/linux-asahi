@@ -405,6 +405,13 @@
 		clock-output-names = "clkref";
 	};
 
+	clk_200m: clock-200m {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <200000000>;
+		clock-output-names = "clk_200m";
+	};
+
 	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -526,6 +533,20 @@
 			status = "disabled";
 		};
 
+		spi1: spi@289104000 {
+			compatible = "apple,t6030-spi", "apple,t8103-spi";
+			reg = <0x2 0x89104000 0x0 0x4000>;
+			interrupt-parent = <&aic>;
+			interrupts = <AIC_IRQ 875 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&clk_200m>;
+			pinctrl-0 = <&spi1_pins>;
+			pinctrl-names = "default";
+			power-domains = <&ps_spi1>;
+			status = "disabled";
+		};
+
 		pmgr_gfx: power-management@290e80000 {
 			compatible = "apple,t6030-pmgr", "apple,t8103-pmgr", "syscon", "simple-mfd";
 			#address-cells = <1>;
@@ -602,6 +623,13 @@
 			i2c8_pins: i2c8-pins {
 				pinmux = <APPLE_PINMUX(51, 1)>,
 					 <APPLE_PINMUX(50, 1)>;
+			};
+
+			spi1_pins: spi1-pins {
+				pinmux = <APPLE_PINMUX(24, 1)>, /* SDI */
+					<APPLE_PINMUX(25, 1)>,  /* SDO */
+					<APPLE_PINMUX(26, 1)>,  /* SCK */
+					<APPLE_PINMUX(27, 1)>;  /* CS */
 			};
 
 			pcie_pins: pcie-pins {
