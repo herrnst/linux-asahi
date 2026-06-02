@@ -44,3 +44,5 @@
 &serial0 {
 	status = "okay";
 };
+
+#include "spi1-nvram.dtsi"
