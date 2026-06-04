@@ -248,8 +248,6 @@
 		};
 	};
 
-
-
 	sawtooth_opp: opp-table-0 {
 		compatible = "operating-points-v2";
 		opp-shared;
