@@ -75,6 +75,7 @@
 			i-cache-size = <0x20000>;
 			d-cache-size = <0x10000>;
 			operating-points-v2 = <&sawtooth_opp>;
+			capacity-dmips-mhz = <851>;
 			performance-domains = <&cpufreq_e>;
 		};
 
@@ -88,6 +89,7 @@
 			i-cache-size = <0x20000>;
 			d-cache-size = <0x10000>;
 			operating-points-v2 = <&sawtooth_opp>;
+			capacity-dmips-mhz = <851>;
 			performance-domains = <&cpufreq_e>;
 		};
 
@@ -101,6 +103,7 @@
 			i-cache-size = <0x20000>;
 			d-cache-size = <0x10000>;
 			operating-points-v2 = <&sawtooth_opp>;
+			capacity-dmips-mhz = <851>;
 			performance-domains = <&cpufreq_e>;
 		};
 
@@ -114,6 +117,7 @@
 			i-cache-size = <0x20000>;
 			d-cache-size = <0x10000>;
 			operating-points-v2 = <&sawtooth_opp>;
+			capacity-dmips-mhz = <851>;
 			performance-domains = <&cpufreq_e>;
 		};
 
@@ -127,6 +131,7 @@
 			i-cache-size = <0x20000>;
 			d-cache-size = <0x10000>;
 			operating-points-v2 = <&sawtooth_opp>;
+			capacity-dmips-mhz = <851>;
 			performance-domains = <&cpufreq_e>;
 		};
 
@@ -140,6 +145,7 @@
 			i-cache-size = <0x20000>;
 			d-cache-size = <0x10000>;
 			operating-points-v2 = <&sawtooth_opp>;
+			capacity-dmips-mhz = <851>;
 			performance-domains = <&cpufreq_e>;
 		};
 
@@ -153,6 +159,7 @@
 			i-cache-size = <0x30000>;
 			d-cache-size = <0x20000>;
 			operating-points-v2 = <&everest_opp>;
+			capacity-dmips-mhz = <1024>;
 			performance-domains = <&cpufreq_p>;
 		};
 
@@ -166,6 +173,7 @@
 			i-cache-size = <0x30000>;
 			d-cache-size = <0x20000>;
 			operating-points-v2 = <&everest_opp>;
+			capacity-dmips-mhz = <1024>;
 			performance-domains = <&cpufreq_p>;
 		};
 
@@ -179,6 +187,7 @@
 			i-cache-size = <0x30000>;
 			d-cache-size = <0x20000>;
 			operating-points-v2 = <&everest_opp>;
+			capacity-dmips-mhz = <1024>;
 			performance-domains = <&cpufreq_p>;
 		};
 
@@ -192,6 +201,7 @@
 			i-cache-size = <0x30000>;
 			d-cache-size = <0x20000>;
 			operating-points-v2 = <&everest_opp>;
+			capacity-dmips-mhz = <1024>;
 			performance-domains = <&cpufreq_p>;
 		};
 
@@ -205,6 +215,7 @@
 			i-cache-size = <0x30000>;
 			d-cache-size = <0x20000>;
 			operating-points-v2 = <&everest_opp>;
+			capacity-dmips-mhz = <1024>;
 			performance-domains = <&cpufreq_p>;
 		};
 
@@ -218,6 +229,7 @@
 			i-cache-size = <0x30000>;
 			d-cache-size = <0x20000>;
 			operating-points-v2 = <&everest_opp>;
+			capacity-dmips-mhz = <1024>;
 			performance-domains = <&cpufreq_p>;
 		};
 
