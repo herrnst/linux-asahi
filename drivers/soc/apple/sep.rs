@@ -5,15 +5,37 @@
 //!
 //! Copyright (C) The Asahi Linux Contributors
 
-use core::sync::atomic::{AtomicBool, Ordering};
-
 use kernel::{
-    bindings, c_str, device, dma, module_platform_driver, new_mutex, of, platform,
+    bindings,
+    device,
+    dma,
+    module_platform_driver,
+    new_mutex,
+    of,
+    platform,
     prelude::*,
-    soc::apple::mailbox::{MailCallback, Mailbox, Message},
-    sync::{Arc, Mutex},
-    types::{ARef, ForeignOwnable},
-    workqueue::{self, impl_has_work, new_work, Work, WorkItem},
+    soc::apple::mailbox::{
+        MailCallback,
+        Mailbox,
+        Message, //
+    },
+    sync::{
+        aref::ARef,
+        atomic::{
+            Atomic,
+            Relaxed, //
+        },
+        Arc,
+        Mutex, //
+    },
+    types::ForeignOwnable,
+    workqueue::{
+        self,
+        impl_has_work,
+        new_work,
+        Work,
+        WorkItem, //
+    }, //
 };
 
 const SHMEM_SIZE: usize = 0x30000;
@@ -38,7 +60,7 @@ const MSG_DATA_SHIFT: u32 = 32;
 
 const IOVA_SHIFT: u32 = 0xC;
 
-type ShMem = dma::CoherentAllocation<u8>;
+type ShMem = dma::Coherent<[u8]>;
 
 fn align_up(v: usize, a: usize) -> usize {
     (v + a - 1) & !(a - 1)
@@ -51,7 +73,7 @@ fn memcpy_to_iomem(iomem: &mut ShMem, off: usize, src: &[u8]) -> Result<()> {
     // concurrent read and write accesses to the same region while the slice is
     // alive per as_slice_mut()'s requiremnts.
     unsafe {
-        let target = iomem.as_slice_mut(off, src.len())?;
+        let target = &mut iomem.as_mut()[off..off + src.len()];
         target.copy_from_slice(src);
     }
     Ok(())
@@ -59,15 +81,14 @@ fn memcpy_to_iomem(iomem: &mut ShMem, off: usize, src: &[u8]) -> Result<()> {
 
 fn build_shmem(dev: &platform::Device<device::Core>) -> Result<ShMem> {
     let fwnode = dev.as_ref().fwnode().ok_or(EIO)?;
-    let mut iomem =
-        dma::CoherentAllocation::<u8>::alloc_coherent(dev.as_ref(), SHMEM_SIZE, GFP_KERNEL)?;
+    let mut iomem = dma::Coherent::<u8>::zeroed_slice(dev.as_ref(), SHMEM_SIZE, GFP_KERNEL)?;
 
     let panic_offset = 0x4000;
     let panic_size = 0x8000;
     memcpy_to_iomem(&mut iomem, panic_offset, &1u32.to_le_bytes())?;
 
     let lpol_offset = panic_offset + panic_size;
-    let lpol_prop_name = c_str!("local-policy-manifest");
+    let lpol_prop_name = c"local-policy-manifest";
     let lpol_prop_size = fwnode.property_count_elem::<u8>(lpol_prop_name)?;
     let lpol = fwnode
         .property_read_array_vec(lpol_prop_name, lpol_prop_size)?
@@ -81,7 +102,7 @@ fn build_shmem(dev: &platform::Device<device::Core>) -> Result<ShMem> {
     let lpol_size = align_up(lpol_prop_size + 4, 0x4000);
 
     let ibot_offset = lpol_offset + lpol_size;
-    let ibot_prop_name = c_str!("iboot-manifest");
+    let ibot_prop_name = c"iboot-manifest";
     let ibot_prop_size = fwnode.property_count_elem::<u8>(ibot_prop_name)?;
     let ibot = fwnode
         .property_read_array_vec(ibot_prop_name, ibot_prop_size)?
@@ -155,7 +176,7 @@ struct SepData {
     mbox: Mutex<Option<Mailbox<SepData>>>,
     shmem: ShMem,
     region_params: FwRegionParams,
-    fw_mapped: AtomicBool,
+    fw_mapped: Atomic<bool>,
 }
 
 impl SepData {
@@ -169,7 +190,7 @@ impl SepData {
                 dev: ARef::<device::Device>::from(dev.as_ref()),
                 mbox <- new_mutex!(None),
                 region_params,
-                fw_mapped: AtomicBool::new(false),
+                fw_mapped: Atomic::new(false),
             }),
             GFP_KERNEL,
         )
@@ -196,7 +217,7 @@ impl SepData {
                 dev_err!(self.dev, "Failed to map firmware");
                 return Err(ENOMEM);
             }
-            self.fw_mapped.store(true, Ordering::Relaxed);
+            self.fw_mapped.store(true, Relaxed);
             res >> IOVA_SHIFT
         };
         let guard = self.mbox.lock();
@@ -262,7 +283,7 @@ impl SepData {
     }
     fn remove(&self) {
         *self.mbox.lock() = None;
-        if self.fw_mapped.load(Ordering::Relaxed) {
+        if self.fw_mapped.load(Relaxed) {
             unsafe {
                 bindings::dma_unmap_resource(
                     self.dev.as_raw(),
@@ -308,7 +329,7 @@ kernel::of_device_table!(
     OF_TABLE,
     MODULE_OF_TABLE,
     (),
-    [(of::DeviceId::new(c_str!("apple,sep")), ())]
+    [(of::DeviceId::new(c"apple,sep"), ())]
 );
 
 impl platform::Driver for SepDriver {
@@ -321,7 +342,7 @@ impl platform::Driver for SepDriver {
         _info: Option<&()>,
     ) -> impl PinInit<Self, Error> {
         let of = pdev.as_ref().of_node().ok_or(EIO)?;
-        let res = of.reserved_mem_region_to_resource_byname(c_str!("sepfw"))?;
+        let res = of.reserved_mem_region_to_resource_byname(c"sepfw")?;
         let data = SepData::new(
             pdev,
             FwRegionParams {
@@ -329,11 +350,7 @@ impl platform::Driver for SepDriver {
                 size: res.size().try_into()?,
             },
         )?;
-        *data.mbox.lock() = Some(Mailbox::new_byname(
-            pdev.as_ref(),
-            c_str!("mbox"),
-            data.clone(),
-        )?);
+        *data.mbox.lock() = Some(Mailbox::new_byname(pdev.as_ref(), c"mbox", data.clone())?);
         data.start()?;
         Ok(Self(data))
     }
