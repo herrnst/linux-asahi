@@ -14,17 +14,20 @@ use crate::{
             AllocOps, //
         },
     },
-    error::to_result,
+    error::{
+        from_err_ptr,
+        to_result, //
+    },
     prelude::*,
     sync::aref::{
         ARef,
         AlwaysRefCounted, //
     },
-    types::Opaque,
+    types::Opaque, //
 };
 use core::{
-    ops::Deref,
     marker::PhantomData,
+    ops::Deref,
     ptr::NonNull, //
 };
 
