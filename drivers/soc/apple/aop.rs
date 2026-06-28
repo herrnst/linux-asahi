@@ -5,25 +5,59 @@
 //!
 //! Copyright (C) The Asahi Linux Contributors
 
-use core::{arch::asm, cmp, mem, ptr, slice};
+use core::{
+    arch::asm,
+    cmp,
+    mem,
+    ptr,
+    slice, //
+};
 
 use kernel::{
-    bindings, c_str, device,
+    bindings,
+    c_str,
+    device,
     device::Core,
-    dma::{CoherentAllocation, Device, DmaMask},
+    dma::{
+        Coherent,
+        Device,
+        DmaMask, //
+    },
     error::from_err_ptr,
     io::{
         mem::IoMem,
-        Io, //
+        Io,
+        RelaxedMmio, //
     },
     iosys_map::IoSysMapRef,
-    module_platform_driver, new_condvar, new_mutex, of, platform,
+    module_platform_driver,
+    new_condvar,
+    new_mutex,
+    of,
+    platform,
     prelude::*,
-    soc::apple::aop::{from_fourcc, EPICService, FakehidListener, AOP},
+    soc::apple::aop::{
+        from_fourcc,
+        EPICService,
+        FakehidListener,
+        AOP, //
+    },
     soc::apple::rtkit,
-    sync::{Arc, ArcBorrow, CondVar, Mutex},
-    types::{ARef, ForeignOwnable},
-    workqueue::{self, impl_has_work, new_work, Work, WorkItem},
+    sync::{
+        aref::ARef,
+        Arc,
+        ArcBorrow,
+        CondVar,
+        Mutex, //
+    },
+    types::ForeignOwnable,
+    workqueue::{
+        self,
+        impl_has_work,
+        new_work,
+        Work,
+        WorkItem, //
+    }, //
 };
 
 const AOP_MAX_CALLS: usize = 8;
@@ -158,7 +192,7 @@ struct CallResult {
 
 struct AFKEndpoint {
     index: u8,
-    iomem: Option<CoherentAllocation<u8>>,
+    iomem: Option<Coherent<[u8]>>,
     txbuf: Option<AFKRingBuffer>,
     rxbuf: Option<AFKRingBuffer>,
     seq: u16,
@@ -264,40 +298,36 @@ impl AFKEndpoint {
     fn iomem_write32(&mut self, off: usize, data: u32) -> Result<()> {
         let size = core::mem::size_of::<u32>();
         let data = data.to_le_bytes();
-        let buf = unsafe { self.iomem.as_mut().ok_or(ENXIO)?.as_slice_mut(off, size)? };
+        let iomem = &self.iomem.as_mut().ok_or(ENXIO)?;
+        let buf = unsafe { &mut iomem.as_mut()[off..off + size] };
         buf.copy_from_slice(&data);
         Ok(())
     }
 
     fn iomem_read32(&self, off: usize) -> Result<u32> {
         let size = core::mem::size_of::<u32>();
-        let buf = unsafe { self.iomem.as_ref().ok_or(ENXIO)?.as_slice(off, size)? };
+        let iomem = &self.iomem.as_ref().ok_or(ENXIO)?;
+        let buf = unsafe { &iomem.as_ref()[off..off + size] };
         Ok(u32::from_le_bytes(buf.try_into().unwrap()))
     }
 
     fn memcpy_from_iomem(&self, off: usize, target: &mut [u8]) -> Result<()> {
+        let iomem = &self.iomem.as_ref().ok_or(ENXIO)?;
         // SAFETY:
         // as_slice() checks that off and target.len() are whithin iomem's limits.
         unsafe {
-            let src = self
-                .iomem
-                .as_ref()
-                .ok_or(ENXIO)?
-                .as_slice(off, target.len())?;
+            let src = &iomem.as_ref()[off..off + target.len()];
             target.copy_from_slice(src);
         }
         Ok(())
     }
 
     fn memcpy_to_iomem(&mut self, off: usize, src: &[u8]) -> Result<()> {
+        let iomem = &self.iomem.as_mut().ok_or(ENXIO)?;
         // SAFETY:
         // as_slice_mut() checks that off and src.len() are whithin iomem's limits.
         unsafe {
-            let target = self
-                .iomem
-                .as_mut()
-                .ok_or(ENXIO)?
-                .as_slice_mut(off, src.len())?;
+            let target = &mut iomem.as_mut()[off..off + src.len()];
             target.copy_from_slice(src);
         }
         Ok(())
@@ -318,9 +348,9 @@ impl AFKEndpoint {
             );
             return Err(EIO);
         }
-        let iomem = dev.while_bound_with(|bound_dev| {
-            CoherentAllocation::<u8>::alloc_coherent(bound_dev, size, GFP_KERNEL)
-        })?;
+        // SAFETY: TODO
+        let bound_dev = unsafe { dev.as_bound() };
+        let iomem = Coherent::<u8>::zeroed_slice(bound_dev, size, GFP_KERNEL)?;
         rtkit.send_message(self.index, AFK_MSG_GET_BUF_ACK | iomem.dma_handle())?;
         self.iomem = Some(iomem);
         Ok(())
@@ -659,6 +689,7 @@ impl WorkItem for AopServiceRegisterWork {
             size_data: mem::size_of::<EPICService>(),
             dma_mask: 0,
             fwnode: fwnode.map(|x| x.as_raw()).unwrap_or(ptr::null_mut()),
+            swnode: ptr::null_mut(),
             properties: ptr::null_mut(),
             of_node_reused: false,
         };
@@ -780,8 +811,9 @@ impl AopData {
         aop_mmio: &IoMem<AOP_MMIO_SIZE>,
         patches: &[(u32, u64)],
     ) -> Result<()> {
-        let offset = aop_mmio.read32_relaxed(BOOTARGS_OFFSET) as usize;
-        let size = aop_mmio.read32_relaxed(BOOTARGS_SIZE) as usize;
+        let aop_mmio = aop_mmio.relaxed();
+        let offset = aop_mmio.read32(BOOTARGS_OFFSET) as usize;
+        let size = aop_mmio.read32(BOOTARGS_SIZE) as usize;
         let mut arg_bytes = KVec::<u8>::from_elem(0, size, GFP_KERNEL)?;
         aop_mmio.try_memcpy_fromio(&mut arg_bytes, offset)?;
         let mut idx = 0;
@@ -801,9 +833,9 @@ impl AopData {
         aop_mmio.try_memcpy_toio(offset, &arg_bytes)
     }
 
-    fn start_cpu(&self, asc_mmio: &IoMem<ASC_MMIO_SIZE>) -> Result<()> {
-        let val = asc_mmio.read32_relaxed(CPU_CONTROL);
-        asc_mmio.write32_relaxed(val | CPU_RUN, CPU_CONTROL);
+    fn start_cpu(&self, asc_mmio: &RelaxedMmio<ASC_MMIO_SIZE>) -> Result<()> {
+        let val = asc_mmio.read32(CPU_CONTROL);
+        asc_mmio.write32(val | CPU_RUN, CPU_CONTROL);
         Ok(())
     }
 }
@@ -977,7 +1009,7 @@ impl platform::Driver for AopDriver {
         )?;
         let rtkit = rtkit::RtKit::<AopData>::new(pdev.as_ref(), None, 0, data.clone())?;
         *data.rtkit.lock() = Some(rtkit);
-        let asc_mmio = asc_mmio.access(pdev.as_ref())?;
+        let asc_mmio = asc_mmio.access(pdev.as_ref())?.relaxed();
         let _ = data.start_cpu(asc_mmio);
         data.start()?;
         let data = data as Arc<dyn AOP>;
