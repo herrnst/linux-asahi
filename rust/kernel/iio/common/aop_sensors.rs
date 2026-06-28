@@ -9,11 +9,15 @@ use core::ptr;
 use core::sync::atomic::{AtomicU32, Ordering};
 
 use kernel::{
-    bindings, device,
+    bindings,
+    device,
     prelude::*,
     soc::apple::aop::FakehidListener,
-    sync::Arc,
-    types::{ARef, ForeignOwnable},
+    sync::{
+        aref::ARef,
+        Arc, //
+    },
+    types::ForeignOwnable,
     ThisModule, //
 };
 
