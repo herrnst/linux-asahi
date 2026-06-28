@@ -5,10 +5,7 @@
 //!
 //! Copyright (C) The Asahi Linux Contributors
 
-use core::{
-    mem,
-    slice, //
-};
+use core::mem;
 
 use kernel::{
     bindings,
@@ -17,7 +14,10 @@ use kernel::{
         Core, //
     },
     devres::Devres,
-    dma::CoherentAllocation,
+    dma::{
+        Coherent,
+        CoherentBox, //
+    },
     io::{
         mem::IoMem,
         Io, //
@@ -32,13 +32,15 @@ use kernel::{
     soc::apple::rtkit,
     str::CString,
     sync::{
+        aref::ARef,
         Arc,
         Mutex, //
     },
-    types::{
-        ARef,
-        ForeignOwnable, //
-    }, //
+    transmute::{
+        AsBytes,
+        FromBytes, //
+    },
+    types::ForeignOwnable, //
 };
 
 const PMP_MMIO_SIZE: usize = 0x80000;
@@ -68,11 +70,22 @@ const fn from_fourcc(b: &[u8; 4]) -> u32 {
 
 struct PmpAllocation {
     addr: u64,
-    alloc: CoherentAllocation<u8>,
+    alloc: Coherent<[u8]>,
 }
 
+struct IovaTableEntry {
+    _host_addr: u64,
+    _pio_base: u64,
+    _size: u64,
+}
+
+// SAFETY: TODO:
+unsafe impl AsBytes for IovaTableEntry {}
+// SAFETY: TODO:
+unsafe impl FromBytes for IovaTableEntry {}
+
 struct PmpState {
-    iova_table: Option<CoherentAllocation<u64>>,
+    iova_table: Option<Coherent<[IovaTableEntry]>>,
     allocs: KVec<PmpAllocation>,
     value_buf: Option<u64>,
     ioreg_entries: KVec<u32>,
@@ -97,7 +110,7 @@ impl PmpState {
         }
         None
     }
-    fn get_buf(&mut self, addr: u64) -> Option<&mut CoherentAllocation<u8>> {
+    fn get_buf(&mut self, addr: u64) -> Option<&mut Coherent<[u8]>> {
         let idx = self.find_alloc(addr)?;
         Some(&mut self.allocs[idx].alloc)
     }
@@ -134,9 +147,9 @@ impl PmpData {
         )
     }
     fn start_cpu(&self, dev: &platform::Device<Core>) -> Result<()> {
-        let asc_mmio = self.asc_mmio.access(dev.as_ref())?;
-        let val = asc_mmio.read32_relaxed(CPU_CONTROL);
-        asc_mmio.write32_relaxed(val | CPU_RUN, CPU_CONTROL);
+        let asc_mmio = self.asc_mmio.access(dev.as_ref())?.relaxed();
+        let val = asc_mmio.read32(CPU_CONTROL);
+        asc_mmio.write32(val | CPU_RUN, CPU_CONTROL);
         Ok(())
     }
     fn start(&self) -> Result<()> {
@@ -146,9 +159,9 @@ impl PmpData {
         rtk.start_endpoint(PMP_ENDPOINT)
     }
     fn patch_bootargs(&self, dev: &platform::Device<Core>, patches: &[(u32, u32)]) -> Result<()> {
-        let io = self.pmp_mmio.access(dev.as_ref())?;
-        let offset = io.read32_relaxed(BOOTARGS_OFFSET) as usize;
-        let size = io.read32_relaxed(BOOTARGS_SIZE) as usize;
+        let io = self.pmp_mmio.access(dev.as_ref())?.relaxed();
+        let offset = io.read32(BOOTARGS_OFFSET) as usize;
+        let size = io.read32(BOOTARGS_SIZE) as usize;
         let mut arg_bytes = kvec![0u8; size]?;
         io.try_memcpy_fromio(&mut arg_bytes, offset)?;
         let mut idx = 0;
@@ -183,12 +196,9 @@ impl PmpData {
         let ranges = node
             .property_read_array_vec::<u64>(prop_name, n_entries * 2)?
             .required_by(&self.dev)?;
-        let mut table = self.dev.while_bound_with(|bound_dev| {
-            CoherentAllocation::alloc_coherent(bound_dev, 512, GFP_KERNEL)
-        })?;
-        for i in 0..table.count() {
-            unsafe { table.write(&[0], i)? };
-        }
+        // SAFETY: TODO: ensure self.dev is bound
+        let bound_dev = unsafe { self.dev.as_bound() };
+        let mut table = CoherentBox::<[IovaTableEntry]>::zeroed_slice(bound_dev, 170, GFP_KERNEL)?;
 
         let domain = unsafe { bindings::iommu_get_domain_for_dev(self.dev.as_raw()) };
         for i in 0..n_entries {
@@ -207,17 +217,22 @@ impl PmpData {
                     return Err(Error::from_errno(err));
                 }
             }
-            unsafe { table.write(&[host_addr, pio_base, size], i * 3)? };
+            table[i] = IovaTableEntry {
+                _host_addr: host_addr,
+                _pio_base: pio_base,
+                _size: size,
+            };
             pio_base += PIO_GRANULARITY;
         }
+        let table: Coherent<[IovaTableEntry]> = table.into();
         let msg = (OPC_GET_IOVA_TABLE | OPC_ACK_MASK) << OPC_SHIFT | table.dma_handle();
         state.iova_table = Some(table);
         Ok(msg)
     }
     fn malloc(&self, size: u64) -> Result<u64> {
-        let iomem = self.dev.while_bound_with(|bound_dev| {
-            CoherentAllocation::alloc_coherent(bound_dev, size as usize, GFP_KERNEL)
-        })?;
+        // SAFETY: TODO: ensure self.dev is bound
+        let bound_dev = unsafe { self.dev.as_bound() };
+        let iomem = Coherent::<u8>::zeroed_slice(bound_dev, size as usize, GFP_KERNEL)?;
         let mut state = self.state.lock();
         let addr = iomem.dma_handle();
         let msg = (OPC_MALLOC | OPC_ACK_MASK) << OPC_SHIFT | addr;
@@ -257,11 +272,11 @@ impl PmpData {
             dev_err!(self.dev, "Unable to find buffer");
             return Err(EIO);
         };
-        if ptr_buf.count() < mem::size_of::<u64>() {
+        if ptr_buf.size() < mem::size_of::<u64>() {
             dev_err!(self.dev, "Buffer too small");
             return Err(EIO);
         }
-        let ptr = unsafe { *(ptr_buf.start_ptr() as *const u64) };
+        let ptr = unsafe { *(ptr_buf.as_ptr() as *const u64) };
         state.value_buf = Some(ptr);
         let msg = (OPC_SET_BUF | OPC_ACK_MASK) << OPC_SHIFT;
         Ok(msg)
@@ -274,18 +289,18 @@ impl PmpData {
             dev_err!(self.dev, "Unable to find buffer");
             return Err(EIO);
         };
-        if msg_buf.count() < 0x44 {
+        if msg_buf.size() < 0x44 {
             dev_err!(self.dev, "Buffer too small");
             return Err(EIO);
         }
-        let mut size = unsafe { *(msg_buf.start_ptr().offset(0x40) as *const u32) };
+        // SAFETY: TODO
+        let mut size = u32::from_le_bytes(unsafe {
+            <&[u8] as TryInto<[u8; 4]>>::try_into(&msg_buf.as_ref()[0x40..0x44]).unwrap()
+        });
         if size == 0 {
             let mut name_vec = KVec::with_capacity(0x31, GFP_KERNEL)?;
             name_vec
-                .extend_from_slice(
-                    unsafe { slice::from_raw_parts(msg_buf.start_ptr(), 0x30) },
-                    GFP_KERNEL,
-                )
+                .extend_from_slice(unsafe { &msg_buf.as_ref()[0..0x30] }, GFP_KERNEL)
                 .unwrap();
             name_vec.push(0, GFP_KERNEL).unwrap();
             let name_str = CStr::from_bytes_until_nul(&name_vec).unwrap();
@@ -308,7 +323,7 @@ impl PmpData {
                     .property_read_array_vec::<u8>(&name_str, len)?
                     .required_by(&self.dev)?;
                 unsafe {
-                    slice::from_raw_parts_mut(val_buf.start_ptr_mut(), len).copy_from_slice(&data);
+                    val_buf.as_mut()[0..len].copy_from_slice(&data);
                 }
                 size = len as u32;
             } else {
