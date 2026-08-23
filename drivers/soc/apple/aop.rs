@@ -8,6 +8,7 @@
 use core::{
     arch::asm,
     cmp,
+    marker::Unpin,
     mem,
     ptr,
     slice, //
@@ -25,11 +26,13 @@ use kernel::{
     },
     error::from_err_ptr,
     io::{
-        mem::IoMem,
+        io_project,
         Io,
-        RelaxedMmio, //
+        IoBase,
+        IoSysMap,
+        Mmio,
+        Region, //
     },
-    iosys_map::IoSysMapRef,
     module_platform_driver,
     new_condvar,
     new_mutex,
@@ -42,7 +45,10 @@ use kernel::{
         FakehidListener,
         AOP, //
     },
-    soc::apple::rtkit,
+    soc::apple::rtkit::{
+        self,
+        ASC_CPU_CONTROL, //
+    },
     sync::{
         aref::ARef,
         Arc,
@@ -65,8 +71,6 @@ const AOP_MMIO_SIZE: usize = 0x1e0000;
 const ASC_MMIO_SIZE: usize = 0x4000;
 const BOOTARGS_OFFSET: usize = 0x22c;
 const BOOTARGS_SIZE: usize = 0x230;
-const CPU_CONTROL: usize = 0x44;
-const CPU_RUN: u32 = 0x1 << 4;
 const AFK_ENDPOINT_START: u8 = 0x20;
 const AFK_ENDPOINT_COUNT: u8 = 0xf;
 const AFK_OPC_GET_BUF: u64 = 0x89;
@@ -154,7 +158,7 @@ struct FutureValue<T> {
     completion: CondVar,
 }
 
-impl<T> FutureValue<T> {
+impl<T: Unpin> FutureValue<T> {
     fn pin_init() -> impl PinInit<FutureValue<T>> {
         pin_init!(
             FutureValue {
@@ -714,7 +718,7 @@ impl WorkItem for AopServiceRegisterWork {
 }
 
 impl AopData {
-    fn new(dev: &platform::Device<Core>) -> Result<Arc<AopData>> {
+    fn new(dev: &platform::Device<Core<'_>>) -> Result<Arc<AopData>> {
         Arc::pin_init(
             pin_init!(
                 AopData {
@@ -808,14 +812,15 @@ impl AopData {
 
     fn patch_bootargs(
         &self,
-        aop_mmio: &IoMem<AOP_MMIO_SIZE>,
+        aop_mmio: &Mmio<'_, Region<AOP_MMIO_SIZE>>,
         patches: &[(u32, u64)],
     ) -> Result<()> {
-        let aop_mmio = aop_mmio.relaxed();
         let offset = aop_mmio.read32(BOOTARGS_OFFSET) as usize;
         let size = aop_mmio.read32(BOOTARGS_SIZE) as usize;
         let mut arg_bytes = KVec::<u8>::from_elem(0, size, GFP_KERNEL)?;
-        aop_mmio.try_memcpy_fromio(&mut arg_bytes, offset)?;
+        let aop_io_array: Mmio<'_, [u8; AOP_MMIO_SIZE]> = aop_mmio.try_cast()?;
+        let bootargs = io_project!(aop_io_array, [try: offset .. offset+size]);
+        bootargs.copy_to_slice(&mut arg_bytes);
         let mut idx = 0;
         while idx < size {
             let key = u32::from_le_bytes(arg_bytes[idx..idx + 4].try_into().unwrap());
@@ -830,12 +835,7 @@ impl AopData {
             }
             idx += size;
         }
-        aop_mmio.try_memcpy_toio(offset, &arg_bytes)
-    }
-
-    fn start_cpu(&self, asc_mmio: &RelaxedMmio<ASC_MMIO_SIZE>) -> Result<()> {
-        let val = asc_mmio.read32(CPU_CONTROL);
-        asc_mmio.write32(val | CPU_RUN, CPU_CONTROL);
+        bootargs.copy_from_slice(&arg_bytes);
         Ok(())
     }
 }
@@ -899,7 +899,7 @@ impl AOP for AopData {
         if let Err(e) = self.stop() {
             dev_err!(self.dev, "Failed to stop AOP {:?}", e);
         }
-        *self.rtkit.lock() = None;
+        self.rtkit.lock().as_mut().set(None);
         let guard = self.subdevices.lock();
         for pdev in &*guard {
             unsafe {
@@ -914,7 +914,7 @@ impl rtkit::Buffer for NoBuffer {
     fn iova(&self) -> Result<usize> {
         unreachable!()
     }
-    fn buf(&mut self) -> Result<IoSysMapRef<'_, u8>> {
+    fn buf(&mut self) -> Result<IoSysMap<'_, u8>> {
         unreachable!()
     }
 }
@@ -983,23 +983,25 @@ kernel::of_device_table!(
 
 impl platform::Driver for AopDriver {
     type IdInfo = &'static AopHwConfig;
+    type Data<'bound> = AopDriver;
 
     const OF_ID_TABLE: Option<of::IdTable<Self::IdInfo>> = Some(&OF_TABLE);
 
-    fn probe(
-        pdev: &platform::Device<Core>,
-        info: Option<&Self::IdInfo>,
-    ) -> impl PinInit<Self, Error> {
+    fn probe<'bound>(
+        pdev: &'bound platform::Device<Core<'_>>,
+        info: Option<&'bound Self::IdInfo>,
+    ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound {
         let cfg = info.ok_or(ENODEV)?;
         unsafe { pdev.dma_set_mask_and_coherent(DmaMask::new::<42>())? };
         let aop_req = pdev.io_request_by_index(0).ok_or(EINVAL)?;
-        let aop_mmio = KBox::pin_init(aop_req.iomap_sized::<AOP_MMIO_SIZE>(), GFP_KERNEL)?;
+        let aop_mmio = aop_req.iomap_sized::<AOP_MMIO_SIZE>()?;
         let asc_req = pdev.io_request_by_index(1).ok_or(EINVAL)?;
-        let asc_mmio = KBox::pin_init(asc_req.iomap_sized::<ASC_MMIO_SIZE>(), GFP_KERNEL)?;
+        let asc_mmio = asc_req.iomap_sized::<ASC_MMIO_SIZE>()?;
+        let asc_mmio = asc_mmio.as_view().relaxed();
         let data = AopData::new(pdev)?;
-        let aop_mmio = aop_mmio.access(pdev.as_ref())?;
+        let aop_mmio = aop_mmio.as_view();
         data.patch_bootargs(
-            aop_mmio,
+            &aop_mmio,
             &[
                 (from_fourcc(b"EC0p"), cfg.ec0p),
                 (from_fourcc(b"nCal"), 0x0),
@@ -1008,9 +1010,8 @@ impl platform::Driver for AopDriver {
             ],
         )?;
         let rtkit = rtkit::RtKit::<AopData>::new(pdev.as_ref(), None, 0, data.clone())?;
-        *data.rtkit.lock() = Some(rtkit);
-        let asc_mmio = asc_mmio.access(pdev.as_ref())?.relaxed();
-        let _ = data.start_cpu(asc_mmio);
+        data.rtkit.lock().as_mut().set(Some(rtkit));
+        asc_mmio.update(ASC_CPU_CONTROL, |r| r.with_const_cpu_run::<1>());
         data.start()?;
         let data = data as Arc<dyn AOP>;
         Ok(Self(data))
