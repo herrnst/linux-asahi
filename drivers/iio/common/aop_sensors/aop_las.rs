@@ -35,10 +35,14 @@ kernel::of_device_table!(
 
 impl platform::Driver for IIOAopLasDriver {
     type IdInfo = ();
+    type Data<'bound> = IIOAopLasDriver;
 
     const OF_ID_TABLE: Option<of::IdTable<Self::IdInfo>> = Some(&OF_TABLE);
 
-    fn probe(pdev: &platform::Device<Core>, _info: Option<&()>) -> impl PinInit<Self, Error> {
+    fn probe<'bound>(
+        pdev: &'bound platform::Device<Core<'_>>,
+        _info: Option<&'bound ()>,
+    ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound {
         let dev = pdev.as_ref();
         let parent = dev.parent().unwrap();
         // SAFETY: our parent is AOP, and AopDriver is repr(transparent) for Arc<dyn Aop>
