@@ -79,7 +79,7 @@ fn memcpy_to_iomem(iomem: &mut ShMem, off: usize, src: &[u8]) -> Result<()> {
     Ok(())
 }
 
-fn build_shmem(dev: &platform::Device<device::Core>) -> Result<ShMem> {
+fn build_shmem(dev: &platform::Device<device::Core<'_>>) -> Result<ShMem> {
     let fwnode = dev.as_ref().fwnode().ok_or(EIO)?;
     let mut iomem = dma::Coherent::<u8>::zeroed_slice(dev.as_ref(), SHMEM_SIZE, GFP_KERNEL)?;
 
@@ -181,7 +181,7 @@ struct SepData {
 
 impl SepData {
     fn new(
-        dev: &platform::Device<device::Core>,
+        dev: &platform::Device<device::Core<'_>>,
         region_params: FwRegionParams,
     ) -> Result<Arc<SepData>> {
         Arc::pin_init(
@@ -282,7 +282,7 @@ impl SepData {
         }
     }
     fn remove(&self) {
-        *self.mbox.lock() = None;
+        self.mbox.lock().as_mut().set(None);
         if self.fw_mapped.load(Relaxed) {
             unsafe {
                 bindings::dma_unmap_resource(
@@ -334,13 +334,14 @@ kernel::of_device_table!(
 
 impl platform::Driver for SepDriver {
     type IdInfo = ();
+    type Data<'bound> = SepDriver;
 
     const OF_ID_TABLE: Option<of::IdTable<()>> = Some(&OF_TABLE);
 
-    fn probe(
-        pdev: &platform::Device<device::Core>,
-        _info: Option<&()>,
-    ) -> impl PinInit<Self, Error> {
+    fn probe<'bound>(
+        pdev: &'bound platform::Device<device::Core<'_>>,
+        _info: Option<&'bound Self::IdInfo>,
+    ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound {
         let of = pdev.as_ref().of_node().ok_or(EIO)?;
         let res = of.reserved_mem_region_to_resource_byname(c"sepfw")?;
         let data = SepData::new(
@@ -350,7 +351,11 @@ impl platform::Driver for SepDriver {
                 size: res.size().try_into()?,
             },
         )?;
-        *data.mbox.lock() = Some(Mailbox::new_byname(pdev.as_ref(), c"mbox", data.clone())?);
+        data.mbox.lock().as_mut().set(Some(Mailbox::new_byname(
+            pdev.as_ref(),
+            c"mbox",
+            data.clone(),
+        )?));
         data.start()?;
         Ok(Self(data))
     }
