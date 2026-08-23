@@ -13,23 +13,28 @@ use kernel::{
         self,
         Core, //
     },
-    devres::Devres,
     dma::{
         Coherent,
         CoherentBox, //
     },
     io::{
-        mem::IoMem,
-        Io, //
+        io_project,
+        Io,
+        IoBase,
+        IoSysMap,
+        Mmio,
+        Region, //
     },
-    iosys_map::IoSysMapRef,
     kvec,
     module_platform_driver,
     new_mutex,
     of,
     platform,
     prelude::*,
-    soc::apple::rtkit,
+    soc::apple::rtkit::{
+        self,
+        ASC_CPU_CONTROL, //
+    },
     str::CString,
     sync::{
         aref::ARef,
@@ -47,8 +52,6 @@ const PMP_MMIO_SIZE: usize = 0x80000;
 const ASC_MMIO_SIZE: usize = 0x4000;
 const BOOTARGS_OFFSET: usize = 0x22c;
 const BOOTARGS_SIZE: usize = 0x230;
-const CPU_CONTROL: usize = 0x44;
-const CPU_RUN: u32 = 0x1 << 4;
 const PMP_ENDPOINT: u8 = 0x20;
 const OPC_GET_IOVA_TABLE: u64 = 0x10;
 const OPC_MALLOC: u64 = 0x12;
@@ -119,8 +122,6 @@ impl PmpState {
 #[pin_data]
 struct PmpData {
     dev: ARef<device::Device>,
-    pmp_mmio: Pin<KBox<Devres<IoMem<PMP_MMIO_SIZE>>>>,
-    asc_mmio: Pin<KBox<Devres<IoMem<ASC_MMIO_SIZE>>>>,
     #[pin]
     rtkit: Mutex<Option<rtkit::RtKit<PmpData>>>,
     #[pin]
@@ -128,17 +129,11 @@ struct PmpData {
 }
 
 impl PmpData {
-    fn new(dev: &platform::Device<Core>) -> Result<Arc<PmpData>> {
-        let pmp_req = dev.io_request_by_name(c"pmp").ok_or(EINVAL)?;
-        let pmp_mmio = KBox::pin_init(pmp_req.iomap_sized::<PMP_MMIO_SIZE>(), GFP_KERNEL)?;
-        let asc_req = dev.io_request_by_name(c"asc").ok_or(EINVAL)?;
-        let asc_mmio = KBox::pin_init(asc_req.iomap_sized::<ASC_MMIO_SIZE>(), GFP_KERNEL)?;
+    fn new(dev: &platform::Device<Core<'_>>) -> Result<Arc<PmpData>> {
         Arc::pin_init(
             try_pin_init!(
                 PmpData {
                     dev: dev.as_ref().into(),
-                    pmp_mmio,
-                    asc_mmio,
                     rtkit <- new_mutex!(None),
                     state <- new_mutex!(PmpState::new()?)
                 }
@@ -146,24 +141,24 @@ impl PmpData {
             GFP_KERNEL,
         )
     }
-    fn start_cpu(&self, dev: &platform::Device<Core>) -> Result<()> {
-        let asc_mmio = self.asc_mmio.access(dev.as_ref())?.relaxed();
-        let val = asc_mmio.read32(CPU_CONTROL);
-        asc_mmio.write32(val | CPU_RUN, CPU_CONTROL);
-        Ok(())
-    }
     fn start(&self) -> Result<()> {
         let mut guard = self.rtkit.lock();
         let mut rtk = guard.as_mut().as_pin_mut().unwrap();
         rtk.as_mut().wake()?;
         rtk.start_endpoint(PMP_ENDPOINT)
     }
-    fn patch_bootargs(&self, dev: &platform::Device<Core>, patches: &[(u32, u32)]) -> Result<()> {
-        let io = self.pmp_mmio.access(dev.as_ref())?.relaxed();
+    fn patch_bootargs(
+        &self,
+        pmp_mmio: &Mmio<'_, Region<PMP_MMIO_SIZE>>,
+        patches: &[(u32, u32)],
+    ) -> Result<()> {
+        let io = pmp_mmio.as_view().relaxed();
         let offset = io.read32(BOOTARGS_OFFSET) as usize;
         let size = io.read32(BOOTARGS_SIZE) as usize;
         let mut arg_bytes = kvec![0u8; size]?;
-        io.try_memcpy_fromio(&mut arg_bytes, offset)?;
+        let pmp_io_array: Mmio<'_, [u8; PMP_MMIO_SIZE]> = pmp_mmio.try_cast()?;
+        let bootargs = io_project!(pmp_io_array, [try: offset .. offset+size]);
+        bootargs.copy_to_slice(&mut arg_bytes);
         let mut idx = 0;
         while idx < size {
             let key = u32::from_le_bytes(arg_bytes[idx..idx + 4].try_into().unwrap());
@@ -178,7 +173,8 @@ impl PmpData {
             }
             idx += size;
         }
-        io.try_memcpy_toio(offset, &arg_bytes)
+        bootargs.copy_from_slice(&arg_bytes);
+        Ok(())
     }
     fn get_iova_table(&self) -> Result<u64> {
         let mut state = self.state.lock();
@@ -374,7 +370,7 @@ impl rtkit::Buffer for NoBuffer {
     fn iova(&self) -> Result<usize> {
         unreachable!()
     }
-    fn buf(&mut self) -> Result<IoSysMapRef<'_, u8>> {
+    fn buf(&mut self) -> Result<IoSysMap<'_, u8>> {
         unreachable!()
     }
 }
@@ -408,11 +404,21 @@ kernel::of_device_table!(
 
 impl platform::Driver for PmpDriver {
     type IdInfo = ();
+    type Data<'bound> = PmpDriver;
 
     const OF_ID_TABLE: Option<of::IdTable<Self::IdInfo>> = Some(&OF_TABLE);
 
-    fn probe(pdev: &platform::Device<Core>, _info: Option<&()>) -> impl PinInit<Self, Error> {
+    fn probe<'bound>(
+        pdev: &'bound platform::Device<Core<'_>>,
+        _info: Option<&'bound Self::IdInfo>,
+    ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound {
         let dev: ARef<device::Device> = pdev.as_ref().into();
+        let pmp_req = pdev.io_request_by_name(c"pmp").ok_or(EINVAL)?;
+        let pmp_mmio = pmp_req.iomap_sized::<PMP_MMIO_SIZE>()?;
+        let pmp_mmio = pmp_mmio.as_view();
+        let asc_req = pdev.io_request_by_name(c"asc").ok_or(EINVAL)?;
+        let asc_mmio = asc_req.iomap_sized::<ASC_MMIO_SIZE>()?;
+        let asc_mmio = asc_mmio.as_view().relaxed();
         let data = PmpData::new(pdev)?;
         let node = dev.fwnode().ok_or(EIO)?;
         let dvid = node
@@ -421,7 +427,7 @@ impl platform::Driver for PmpDriver {
         let bdid = node.property_read(c"apple,board-id").required_by(&dev)?;
         match node.property_read(c"apple,dram-capacity").optional() {
             Some(dcap) => data.patch_bootargs(
-                pdev,
+                &pmp_mmio,
                 &[
                     (from_fourcc(b"BDID"), bdid),
                     (from_fourcc(b"DCAP"), dcap),
@@ -429,13 +435,13 @@ impl platform::Driver for PmpDriver {
                 ],
             )?,
             None => data.patch_bootargs(
-                pdev,
+                &pmp_mmio,
                 &[(from_fourcc(b"BDID"), bdid), (from_fourcc(b"DVID"), dvid)],
             )?,
         };
         let rtkit = rtkit::RtKit::<PmpData>::new(&dev, None, 0, data.clone())?;
-        *data.rtkit.lock() = Some(rtkit);
-        data.start_cpu(pdev)?;
+        data.rtkit.lock().as_mut().set(Some(rtkit));
+        asc_mmio.update(ASC_CPU_CONTROL, |r| r.with_const_cpu_run::<1>());
         data.start()?;
         Ok(PmpDriver(data))
     }
