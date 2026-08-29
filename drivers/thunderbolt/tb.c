@@ -2965,6 +2965,8 @@ static void tb_stop(struct tb *tb)
 		if (tb_tunnel_is_dma(tunnel) ||
 		    (tb_tunnel_is_dp(tunnel) && !tb_tunnel_is_active(tunnel)))
 			tb_tunnel_deactivate(tunnel);
+		else if (tb_tunnel_is_dp(tunnel) && !tb_tunnel_is_active(tunnel))
+			tb_tunnel_deactivate(tunnel);
 		tb_tunnel_put(tunnel);
 	}
 	tb_switch_remove(tb->root_switch);
