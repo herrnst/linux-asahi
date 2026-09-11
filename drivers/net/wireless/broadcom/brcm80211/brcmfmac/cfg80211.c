@@ -6488,9 +6488,11 @@ brcmf_bss_connect_done(struct brcmf_cfg80211_info *cfg,
 			     ((profile->use_fwsup == BRCMF_PROFILE_FWSUP_SAE) ||
 			      (profile->use_fwsup == BRCMF_PROFILE_FWSUP_PSK));
 		cfg80211_connect_done(ndev, &conn_params, GFP_KERNEL);
-		if (authorized)
+		if (authorized) {
 			cfg80211_port_authorized(ndev, profile->bssid, NULL, 0,
 						 GFP_KERNEL);
+			brcmf_dbg(CONN, "Report port authorized\n");
+		}
 		brcmf_dbg(CONN, "Report connect result - connection %s\n",
 			  completed ? "succeeded" : "failed");
 	}
