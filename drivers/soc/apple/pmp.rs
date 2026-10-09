@@ -370,7 +370,7 @@ impl rtkit::Buffer for NoBuffer {
     fn iova(&self) -> Result<usize> {
         unreachable!()
     }
-    fn buf(&mut self) -> Result<IoSysMap<'_, u8>> {
+    fn buf(&mut self) -> Result<IoSysMap<'_, Region>> {
         unreachable!()
     }
 }
