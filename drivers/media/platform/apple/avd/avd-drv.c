@@ -742,8 +742,7 @@ static int avd_probe(struct platform_device *pdev)
 		if (strnstr(codec_info, "vp9", AVD_CODEC_INFO_MAX_SIZE))
 			caps |= variant_caps & AVD_CAPABILITY_VP9;
 
-		dev_info(avd->dev, "Firmware codecs: %.27s\n",
-			 codec_info + 7, caps);
+		dev_info(avd->dev, "Firmware codecs: %.27s\n", codec_info + 7);
 
 		avd->capabilities = caps;
 	} else {
