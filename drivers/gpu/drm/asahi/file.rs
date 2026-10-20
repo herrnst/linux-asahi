@@ -71,7 +71,7 @@ struct Vm {
 
 impl Drop for Vm {
     fn drop(&mut self) {
-        // When the user Vm is dropped, verify that no user mappings exists.
+        // When the user Vm is dropped, unmap everything in the user range
         let left_range = VM_USER_RANGE.start..self.kernel_range.start;
         let right_range = self.kernel_range.end..VM_USER_RANGE.end;
 
@@ -467,10 +467,11 @@ impl File {
         file: &DrmFile,
     ) -> Result<u32> {
         let vm = file.inner().vms().remove(data.vm_id as usize);
-        if vm.is_none() {
-            Err(ENOENT)
-        } else {
+        if let Some(vm) = vm {
+            vm.vm.bo_deferred_cleanup();
             Ok(0)
+        } else {
+            Err(ENOENT)
         }
     }
 
