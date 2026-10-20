@@ -226,6 +226,17 @@ impl DriverObject for AsahiObject {
         })
     }
 
+    fn create_imported(_dev: &AsahiDrmDevice, _size: usize) -> impl PinInit<Self, Error> {
+        let id = GEM_ID.fetch_add(1, Ordering::Relaxed);
+        mod_pr_debug!("AsahiObject::create_imported id={}\n", id);
+        try_pin_init!(Self {
+            id,
+            flags: 0,
+            exportable: false,
+            kernel: false,
+        })
+    }
+
     /// Callback to drop all mappings for a GEM object owned by a given `File`
     fn close(obj: &<Self::Driver as drm::Driver>::Object, file: &drm::gem::DriverFile<Self>) {
         // fn close(obj: &Object, file: &DrmFile) {
