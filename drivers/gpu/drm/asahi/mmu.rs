@@ -57,7 +57,6 @@ use kernel::{
     },
     new_mutex,
     prelude::*,
-    // scatterlist::SGTable,
     static_lock_class,
     sync::{
         aref::ARef,
@@ -622,13 +621,20 @@ pub(crate) struct KernelMappingInner {
     // - Drop the GpuVmBo first, which resv locks its BO and drops a GpuVm reference
     // - Drop the GEM BO next, since BO free can take the resv lock itself
     // - Drop the owner GpuVm last, since that again can take resv locks when the refcount drops to 0
-    bo: Option<ARef<gpuvm::GpuVmBo<VmInner>>>,
-    _gem: Option<ARef<gem::Object>>,
     owner: ARef<gpuvm::GpuVm<VmInner>>,
+    _gem: Option<ARef<gem::Object>>,
+    bo: Option<ARef<gpuvm::GpuVmBo<VmInner>>>,
     uat_inner: Arc<UatInner>,
     prot: Prot,
     offset: usize,
     mapped_size: usize,
+}
+
+impl Drop for KernelMappingInner {
+    fn drop(self: &mut Self) {
+        self.bo = None;
+        self.owner.deferred_cleanup();
+    }
 }
 
 /// An object mapping into a [`Vm`], which reserves the address range from use by other mappings.
@@ -652,15 +658,7 @@ impl KernelMapping {
 
     /// Remap a cached mapping as uncached, then synchronously flush that range of VAs from the
     /// coprocessor cache. This is required to safely unmap cached/private mappings.
-    fn remap_uncached_and_flush(&mut self) {
-        let mut vm_exec = unsafe {
-            self.0
-                .owner
-                .exec_lock(None, false)
-                .expect("Failed to exec_lock in remap_uncached_and_flush")
-        };
-        let owner = vm_exec.unique_gpuvm.data();
-
+    fn remap_uncached_and_flush(&mut self, owner: &mut VmInner) {
         mod_dev_dbg!(
             owner.dev,
             "MMU: remap as uncached {:#x}:{:#x}\n",
@@ -809,23 +807,23 @@ impl Drop for KernelMapping {
         // 4. Unmap
         // 5. Flush the TLB range again
 
-        if self.0.prot.is_cached_noncoherent() {
-            mod_pr_debug!(
-                "MMU: remap as uncached {:#x}:{:#x}\n",
-                self.iova(),
-                self.size()
-            );
-            self.remap_uncached_and_flush();
-        }
-
         let mut vm_exec = unsafe {
             self.0
                 .owner
                 .exec_lock(None, false)
                 .expect("exec_lock failed in KernelMapping::drop")
         };
-
         let owner = vm_exec.unique_gpuvm.data();
+
+        if self.0.prot.is_cached_noncoherent() {
+            mod_pr_debug!(
+                "MMU: remap as uncached {:#x}:{:#x}\n",
+                self.iova(),
+                self.size()
+            );
+            self.remap_uncached_and_flush(owner);
+        }
+
         mod_dev_dbg!(
             owner.dev,
             "MMU: unmap {:#x}:{:#x}\n",
