@@ -469,6 +469,15 @@
 			#performance-domain-cells = <0>;
 		};
 
+		sio_dart: iommu@289004000 {
+			compatible = "apple,t6030-dart", "apple,t8110-dart";
+			reg = <0x2 0x89004000 0x0 0x4000>;
+			interrupt-parent = <&aic>;
+			interrupts = <AIC_IRQ 901 IRQ_TYPE_LEVEL_HIGH>;
+			#iommu-cells = <1>;
+			power-domains = <&ps_sio>;
+		};
+
 		i2c1: i2c@289014000 {
 			compatible = "apple,t6030-i2c", "apple,t8103-i2c";
 			reg = <0x2 0x89014000 0x0 0x4000>;
@@ -574,15 +583,6 @@
 			pinctrl-names = "default";
 			power-domains = <&ps_spi1>;
 			status = "disabled";
-		};
-
-		sio_dart: iommu@289004000 {
-			compatible = "apple,t6030-dart", "apple,t8110-dart";
-			reg = <0x2 0x89004000 0x0 0x4000>;
-			interrupt-parent = <&aic>;
-			interrupts = <AIC_IRQ 901 IRQ_TYPE_LEVEL_HIGH>;
-			#iommu-cells = <1>;
-			power-domains = <&ps_sio>;
 		};
 
 		admac: dma-controller@28b200000 {
