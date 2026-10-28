@@ -585,6 +585,22 @@
 			status = "disabled";
 		};
 
+		serial0: serial@289200000 {
+			compatible = "apple,s5l-uart";
+			reg = <0x2 0x89200000 0x0 0x1000>;
+			reg-io-width = <4>;
+			interrupt-parent = <&aic>;
+			interrupts = <AIC_IRQ 866 IRQ_TYPE_LEVEL_HIGH>;
+			/*
+			 * TODO: figure out the clocking properly, there may
+			 * be a third selectable clock.
+			 */
+			clocks = <&clkref>, <&clkref>;
+			clock-names = "uart", "clk_uart_baud0";
+			power-domains = <&ps_uart0>;
+			status = "disabled";
+		};
+
 		admac: dma-controller@28b200000 {
 			compatible = "apple,t6030-admac", "apple,t8122-admac";
 			reg = <0x2 0x8b200000 0x0 0x34000>;
@@ -621,22 +637,6 @@
 					<&ps_mca2>, <&ps_mca3>;
 			resets = <&ps_audio_p>;
 			#sound-dai-cells = <1>;
-		};
-
-		serial0: serial@289200000 {
-			compatible = "apple,s5l-uart";
-			reg = <0x2 0x89200000 0x0 0x1000>;
-			reg-io-width = <4>;
-			interrupt-parent = <&aic>;
-			interrupts = <AIC_IRQ 866 IRQ_TYPE_LEVEL_HIGH>;
-			/*
-			 * TODO: figure out the clocking properly, there may
-			 * be a third selectable clock.
-			 */
-			clocks = <&clkref>, <&clkref>;
-			clock-names = "uart", "clk_uart_baud0";
-			power-domains = <&ps_uart0>;
-			status = "disabled";
 		};
 
 		pmgr_gfx: power-management@290e80000 {
